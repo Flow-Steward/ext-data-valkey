@@ -1,0 +1,5 @@
+page_id: connection
+title: Connections
+description: Configure your standalone Valkey server.
+components:
+- ref: "../components/valkey_connection_form.yaml"
