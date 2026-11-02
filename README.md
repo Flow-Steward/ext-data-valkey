@@ -1,6 +1,6 @@
 # Valkey
 
-`flowsteward.valkey` 1.0.0 is a standalone host-v2 tool provider for workflow state, deduplication, counters, hashes and basic queues. Create an explicit **Valkey** project connection and select it in each workflow action. This independent extension uses the Redis-compatible Google MCP Toolbox driver. The extension has no usage billing; your database or infrastructure provider may charge separately.
+`flowsteward.valkey` 1.0.1 is a standalone host-v2 tool provider for workflow state, deduplication, counters, hashes and basic queues. Create an explicit **Valkey** project connection and select it in each workflow action. This independent extension uses the Redis-compatible Google MCP Toolbox driver. The extension has no usage billing; your database or infrastructure provider may charge separately.
 
 ## Connect
 

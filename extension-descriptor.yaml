@@ -3,7 +3,7 @@ lifecycle:
   data_schema_version: 1
   data_migrations: []
 extension_id: flowsteward.valkey
-release_version: 1.0.0
+release_version: 1.0.1
 extension_type: service_extension
 identity:
   display_name: Valkey
