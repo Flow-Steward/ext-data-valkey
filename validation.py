@@ -64,6 +64,7 @@ def connection_values(connection):
                 "port",
                 "database",
                 "namespace",
+                "key_prefix",
                 "tls",
                 "request_timeout_seconds",
             },
@@ -79,6 +80,12 @@ def connection_values(connection):
             ipaddress.IPv6Address(host)
         port = integer(config.get("port", 6379), "port", 1, 65535)
         database = integer(config.get("database", 0), "database", 0, 15)
+        direct = connection.get("connection_type") == "valkey_database"
+        require(not direct or "namespace" not in config, "Namespace is only for project state.")
+        require(
+            direct or "key_prefix" not in config, "Key prefix is only for database connections."
+        )
+        prefix = text(config.get("key_prefix", ""), "key_prefix", 256)
         namespace = text(config.get("namespace", "workflow"), "namespace", 64, nonempty=True)
         require(
             bool(re.fullmatch(r"[A-Za-z0-9_-]{1,64}", namespace)),
@@ -92,6 +99,8 @@ def connection_values(connection):
         for name in ("username", "password"):
             text(secrets.get(name, ""), name, 8192)
         return {
+            "direct_keys": direct,
+            "key_prefix": prefix,
             "host": host,
             "port": port,
             "database": database,

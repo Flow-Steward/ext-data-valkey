@@ -7,6 +7,7 @@ from typing import Any
 from validation import Failure, integer, require, text
 
 WRITES = {
+    "json_set",
     "set",
     "delete",
     "expire",
@@ -17,6 +18,8 @@ WRITES = {
     "list_pop",
 }
 FIELDS = {
+    "json_get": set(),
+    "json_set": {"value", "ttl_seconds", "condition"},
     "get": set(),
     "set": {"value", "ttl_seconds", "condition"},
     "delete": set(),
@@ -43,6 +46,9 @@ def physical_key(args, config, context, connection_id):
             "Account and project scope required.",
             code="invalid_connection",
         )
+    if config.get("direct_keys"):
+        require(key.startswith(config["key_prefix"]), "Key is outside the configured prefix.")
+        return key
     scope = hashlib.sha256(
         json.dumps(
             [context["account_id"], context["project_id"], connection_id],
@@ -53,6 +59,12 @@ def physical_key(args, config, context, connection_id):
 
 
 def compile_command(action, args, config, context, connection_id):
+    if action == "json_set":
+        require("value" in args, "JSON value is required.")
+        args = {**args, "value": json.dumps(args["value"], allow_nan=False, separators=(",", ":"))}
+        action = "set"
+    elif action == "json_get":
+        action = "get"
     if action not in FIELDS:
         raise Failure("unknown_action", "Unknown Valkey action.")
     require(set(args) <= FIELDS[action] | {"connection_ref", "key"}, "Unknown action input.")
@@ -129,6 +141,18 @@ def compile_command(action, args, config, context, connection_id):
 
 
 def normalize_result(action, value, key):
+    if action == "json_get":
+        result = normalize_result("get", value, key)
+        if result["found"]:
+            try:
+                result["value"] = json.loads(
+                    value, parse_constant=lambda _: (_ for _ in ()).throw(ValueError())
+                )
+            except (ValueError, TypeError) as exc:
+                raise Failure("invalid_provider_response", "Stored value is not JSON.") from exc
+        return result
+    if action == "json_set":
+        return normalize_result("set", value, key)
     integer_results = {
         "delete",
         "exists",

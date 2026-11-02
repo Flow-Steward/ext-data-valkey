@@ -1,6 +1,7 @@
 """Exercise real subprocess framing, cleanup, limits and data escaping."""
 
 import inspect
+import multiprocessing
 from pathlib import Path
 import time
 import pytest
@@ -132,3 +133,87 @@ def test_private_permission_matches_sdk_boolean_spellings(monkeypatch):
     monkeypatch.setattr(toolbox, "resolve_pinned_ips", lambda *a, **k: ("127.0.0.1",))
     monkeypatch.setenv("FS_ALLOW_PRIVATE_REMOTE_URLS", " true ")
     assert toolbox._endpoint({**CONFIG, "tls": False}) == "127.0.0.1"
+
+
+@pytest.mark.parametrize("phase", ["checksum", "dns"])
+def test_total_deadline_includes_checksum_and_dns_preflight(monkeypatch, phase):
+    # Baseline spent this entire stall before starting its transport deadline.
+    def stalled_binary():
+        time.sleep(0.4)
+        return "/nonexistent-toolbox"
+
+    def stalled_resolver(*args, **kwargs):
+        # Exercise escalation to SIGKILL and join, not only graceful termination.
+        toolbox.signal.signal(toolbox.signal.SIGTERM, toolbox.signal.SIG_IGN)
+        time.sleep(0.4)
+        return ["127.0.0.1"]
+
+    monkeypatch.setenv("FS_ALLOW_PRIVATE_REMOTE_URLS", "1")
+    monkeypatch.setattr(
+        toolbox,
+        "_binary",
+        stalled_binary if phase == "checksum" else lambda: "/nonexistent-toolbox",
+    )
+    monkeypatch.setattr(toolbox, "resolve_pinned_ips", stalled_resolver)
+    started = time.monotonic()
+    with pytest.raises(Failure) as failure:
+        toolbox.invoke(CONFIG, {}, ["GET", "$key"], {"key": "k"}, timeout_seconds=0.05)
+    assert failure.value.code == "timeout"
+    assert not failure.value.dispatched
+    assert time.monotonic() - started < 0.3
+    assert not [p for p in multiprocessing.active_children() if p.name == "fs-kv-preflight"]
+
+
+@pytest.mark.parametrize(
+    "system,machine", [("Windows", "amd64"), ("Darwin", "arm64"), ("Linux", "sparc")]
+)
+def test_unsupported_platform_fails_before_fork(monkeypatch, system, machine):
+    monkeypatch.setattr(toolbox.platform, "system", lambda: system)
+    monkeypatch.setattr(toolbox.platform, "machine", lambda: machine)
+
+    def forbidden_context(*args):
+        raise AssertionError("Unsupported platforms must never fork")
+
+    monkeypatch.setattr(toolbox.multiprocessing, "get_context", forbidden_context)
+    with pytest.raises(Failure) as failure:
+        toolbox.invoke(CONFIG, {}, ["GET", "$key"], {"key": "k"}, timeout_seconds=1)
+    assert failure.value.code == "native_unavailable"
+
+
+def test_preflight_worker_exception_diagnostics_are_sanitized(monkeypatch, capfd):
+    def failed_endpoint(config):
+        raise RuntimeError("secret-password")
+
+    monkeypatch.setattr(toolbox, "_binary", lambda: "/nonexistent-toolbox")
+    monkeypatch.setattr(toolbox, "_endpoint", failed_endpoint)
+    with pytest.raises(Failure) as failure:
+        toolbox.invoke(CONFIG, {}, ["GET", "$key"], {"key": "k"}, timeout_seconds=1)
+    assert failure.value.code == "provider_unavailable"
+    assert "secret-password" not in str(failure.value)
+    assert "secret-password" not in capfd.readouterr().err
+    assert not [p for p in multiprocessing.active_children() if p.name == "fs-kv-preflight"]
+
+
+def test_deadline_expiring_during_native_start_reaps_process(tmp_path, monkeypatch):
+    script = fake_binary(tmp_path, monkeypatch, "time.sleep(30)\n")
+    monkeypatch.setattr(toolbox, "_preflight", lambda config, deadline: (str(script), "127.0.0.1"))
+    original = toolbox.subprocess.Popen
+    processes = []
+
+    def slow_start(*args, **kwargs):
+        process = original(*args, **kwargs)
+        processes.append(process)
+        time.sleep(0.1)
+        return process
+
+    monkeypatch.setattr(toolbox.subprocess, "Popen", slow_start)
+    try:
+        with pytest.raises(Failure) as failure:
+            toolbox.invoke(CONFIG, {}, ["GET", "$key"], {"key": "k"}, timeout_seconds=0.05)
+        assert failure.value.code == "timeout"
+        assert not failure.value.dispatched
+        assert processes[0].poll() is not None
+    finally:
+        # Keep the RED run itself from leaking its deliberately stalled child.
+        for process in processes:
+            toolbox._stop(process)

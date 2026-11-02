@@ -1,0 +1,33 @@
+{
+  "queries": [
+    {
+      "query_id": "runtime_health",
+      "cursor_mode": "none",
+      "description": "Valkey runtime health.",
+      "required_scopes": [
+        "extension:invoke"
+      ],
+      "result_fields": [
+        "result.status",
+        "result.extension_id"
+      ],
+      "error_codes": [
+        "invalid_payload"
+      ]
+    },
+    {
+      "query_id": "supported_connectors",
+      "cursor_mode": "none",
+      "description": "Valkey supported connectors.",
+      "required_scopes": [
+        "extension:invoke"
+      ],
+      "result_fields": [
+        "result.connectors"
+      ],
+      "error_codes": [
+        "invalid_payload"
+      ]
+    }
+  ]
+}

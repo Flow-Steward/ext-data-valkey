@@ -6,6 +6,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 READS = {
+    "json_get",
     "get",
     "exists",
     "ttl",
@@ -15,6 +16,7 @@ READS = {
     "list_length",
 }
 WRITES = {
+    "json_set",
     "set",
     "delete",
     "expire",
@@ -36,11 +38,11 @@ def test_identity_and_host_contract():
     manifest = load("extension.yaml")
     descriptor = load("extension-descriptor.yaml")
     assert manifest["extension_id"] == descriptor["extension_id"] == "flowsteward.valkey"
-    assert manifest["version"] == descriptor["release_version"] == "1.0.1"
+    assert manifest["version"] == descriptor["release_version"] == "1.1.0"
     assert manifest["kind"] == "tool_provider"
     assert manifest["required_scopes"] == ["extension:invoke"]
-    assert manifest["features"] == ["tool", "action"]
-    assert manifest["egress"] == {"connection_fields": ["valkey.host"]}
+    assert manifest["features"] == ["tool", "action", "dataset_connector"]
+    assert manifest["egress"] == {"connection_fields": ["valkey_database.host", "valkey.host"]}
     assert manifest["runtime"] == descriptor["runtime"]
     assert manifest["runtime"]["contract_version"] == "extension_host_v2"
     assert "dataset_provider" not in str(manifest)
@@ -48,11 +50,15 @@ def test_identity_and_host_contract():
 
 def test_connection_types_are_explicit_bounded_and_secret_safe():
     connections = load("contracts/connection_types.yaml")["connection_types"]
-    assert {c["connection_type_id"] for c in connections} == {"valkey"}
+    assert {c["connection_type_id"] for c in connections} == {"valkey", "valkey_database"}
     for connection in connections:
         config = connection["config_schema"]
         assert config["additionalProperties"] is False
-        assert set(config["properties"]) == CONFIG
+        assert set(config["properties"]) == (
+            CONFIG
+            if connection["connection_type_id"] == "valkey"
+            else CONFIG - {"namespace"} | {"key_prefix"}
+        )
         assert config["required"] == ["host"]
         props = config["properties"]
         assert props["port"]["minimum"] == 1
@@ -60,7 +66,8 @@ def test_connection_types_are_explicit_bounded_and_secret_safe():
         assert props["port"]["default"] == 6379
         assert props["database"]["minimum"] == 0
         assert props["database"]["maximum"] == 15
-        assert props["namespace"]["pattern"] == "^[A-Za-z0-9_-]{1,64}$"
+        if "namespace" in props:
+            assert props["namespace"]["pattern"] == "^[A-Za-z0-9_-]{1,64}$"
         assert props["tls"]["default"] is True
         assert props["request_timeout_seconds"]["maximum"] == 30
         secret = connection["secret_schema"]
@@ -76,15 +83,24 @@ def test_operation_action_form_parity_and_connected_inputs():
     actions = load("ui/actions/actions.yaml")["actions"]
     forms = load("contracts/step_ui_manifest.yaml")["forms"]
     assert {o["operation_id"] for o in operations} == OPERATIONS
-    assert {a["action_id"] for a in actions} == OPERATIONS
+    assert {a["action_id"] for a in actions if a["workflow_visible"]} == OPERATIONS
+    assert {a["action_id"] for a in actions if not a["workflow_visible"]} == {
+        "test_connection",
+        "introspect_schema",
+        "validate_query",
+        "preview_query",
+        "execute_template",
+        "infer_output_schema",
+    }
     assert {f["operation_id"] for f in forms} == OPERATIONS
-    assert len(operations) == len(actions) == len(forms) == 15
+    assert len(operations) == len(forms) == 17
+    assert len(actions) == 23
     action_map = {a["action_id"]: a for a in actions}
     form_map = {f["operation_id"]: f for f in forms}
     for operation in operations:
         operation_id = operation["operation_id"]
         assert operation["operation_kind"] == "action"
-        assert operation["connection_type_ids"] == ["valkey"]
+        assert operation["connection_type_ids"] == ["valkey_database", "valkey"]
         inputs = {item["name"]: item for item in operation["inputs"]}
         assert inputs["key"]["required"] is True
         assert inputs["connection_ref"]["required"] is True
@@ -153,9 +169,13 @@ def test_ui_resolves_one_connection_form_and_uses_masked_secrets():
             component = yaml.safe_load((page_path.parent / component_ref["ref"]).read_text())
             if component["type"] == "connection_form":
                 forms.append(component)
-    assert {f["data"]["connection_type"] for f in forms} == {"valkey"}
+    assert {f["data"]["connection_type"] for f in forms} == {"valkey", "valkey_database"}
     for form in forms:
-        assert set(form["data"]["config_fields"]) == CONFIG
+        assert set(form["data"]["config_fields"]) == (
+            CONFIG
+            if form["data"]["connection_type"] == "valkey"
+            else CONFIG - {"namespace"} | {"key_prefix"}
+        )
         assert set(form["data"]["secret_fields"]) == {"username", "password"}
         assert {f["path"] for f in form["fields"] if f["widget"] == "secret"} == {
             "username",

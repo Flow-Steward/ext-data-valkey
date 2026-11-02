@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import sys
 from flowsteward_extension_sdk import runtime_context_from_payload
+import datasets
 import toolbox
 from commands import WRITES, compile_command, normalize_result
 from validation import Failure, bounded_json, connection_values, require
@@ -14,7 +15,6 @@ def handle(payload):
     dispatched = False
     try:
         runtime_context_from_payload(payload)
-        require(payload.get("mode") == "action", "An action invocation is required.")
         action = payload.get("action") or {}
         name = action.get("action_id")
         args = action.get("input") or {}
@@ -22,13 +22,25 @@ def handle(payload):
         bounded_json(args)
         context = payload["runtime_context"]
         require(type(context.get("test_mode", False)) is bool, "test_mode must be boolean.")
+        if payload.get("mode") == "query":
+            name = (payload.get("query") or {}).get("query_id")
+            require(name in {"supported_connectors", "runtime_health"}, "Unknown query.")
+            result = (
+                {"connectors": datasets.catalog()}
+                if name == "supported_connectors"
+                else {"status": "healthy", "extension_id": "flowsteward.valkey"}
+            )
+            return {"ok": True, "result": result, "errors": []}
+        require(payload.get("mode") == "action", "An action invocation is required.")
+        if name in datasets.ACTIONS:
+            return {"ok": True, "result": datasets.handle(name, args, toolbox.invoke), "errors": []}
         connection = (action.get("target") or {}).get("connection") or {}
         require(
             isinstance(connection, dict)
             and isinstance(args.get("connection_ref"), str)
             and bool(args["connection_ref"])
             and connection.get("connection_id") == args["connection_ref"]
-            and connection.get("connection_type") == "valkey",
+            and connection.get("connection_type") in {"valkey", "valkey_database"},
             "Select the matching Valkey project connection.",
             code="invalid_connection",
         )

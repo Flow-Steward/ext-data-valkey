@@ -1,6 +1,6 @@
 # Valkey
 
-`flowsteward.valkey` 1.0.1 is a standalone host-v2 tool provider for workflow state, deduplication, counters, hashes and basic queues. Create an explicit **Valkey** project connection and select it in each workflow action. This independent extension uses the Redis-compatible Google MCP Toolbox driver. The extension has no usage billing; your database or infrastructure provider may charge separately.
+`flowsteward.valkey` 1.1.0 is a standalone host-v2 tool provider for normal database keys, JSON Datasets, workflow state, counters, hashes and basic queues. Create an explicit **Valkey** database or project-state connection and select it in each workflow action. This independent extension uses the Redis-compatible Google MCP Toolbox driver. The extension has no usage billing; your database or infrastructure provider may charge separately.
 
 ## Connect
 
@@ -11,22 +11,25 @@ Configure a standalone server hostname or IP address, not an HTTP URL, cluster e
 | `host` | Required | Hostname or IP address |
 | `port` | 6379 | Integer 1–65535 |
 | `database` | 0 | Integer 0–15 |
-| `namespace` | `workflow` | 1–64 ASCII letters, digits, `_` or `-` |
+| `namespace` (project state only) | `workflow` | 1–64 ASCII letters, digits, `_` or `-` |
+| `key_prefix` (database only) | Empty | Literal prefix restricting full supplied keys |
 | `tls` | `true` | Boolean |
 | `request_timeout_seconds` | 15 | Integer 1–30 |
 
 Save optional ACL `username` and `password` in the connection's masked secret fields. Use a least-privilege database account. Credentials are not action inputs. TLS checks the server certificate and hostname using the packaged driver's trusted certificate store; verification cannot be disabled. Plaintext (`tls: false`) is accepted only for private endpoints when the host administrator has explicitly enabled private network access. SDK network preflight and endpoint validation run before launching Toolbox. The egress declaration names the connection host fields; it does not promise TCP network isolation.
 
-Keys are automatically prefixed using the configured namespace and a stable account/project/connection scope. Pass the logical key in each action, without a generated prefix. Changing the connection identity or namespace changes the accessible key space and requires an intentional data migration. Namespacing is an application boundary, so server credentials should also enforce appropriate access. It is not a replacement for database ACLs.
+New database connections use exact supplied keys. Legacy project-state keys are automatically prefixed using the configured namespace and a stable account/project/connection scope. Pass the logical key in each action, without a generated prefix. Changing the connection identity or namespace changes the accessible key space and requires an intentional data migration. Namespacing is an application boundary, so server credentials should also enforce appropriate access. It is not a replacement for database ACLs.
 
 ## Actions and results
 
-All 15 actions require `connection_ref` and a nonempty `key`. Values are text; explicitly serialize JSON before storing it. Text is passed as typed Toolbox parameters, so whitespace, newlines, quotes and command-like text remain data.
+All 17 workflow actions require `connection_ref` and a nonempty `key`. Text actions use text values; `json_get` and `json_set` preserve any JSON value stored in an ordinary string key. Text is passed as typed Toolbox parameters, so whitespace, newlines, quotes and command-like text remain data.
 
 | Action | Additional inputs | `value` result |
 | --- | --- | --- |
 | `get` | None | Text, or `null` if missing |
 | `set` | Required text `value`; optional `ttl_seconds`, `condition` (`always`, `nx`, `xx`; default `always`) | Server result; `null` when the condition is unmet |
+| `json_get` | None | Any JSON value; use `found` to distinguish null from missing |
+| `json_set` | Required JSON `value`; optional TTL and condition as SET | Server SET result |
 | `delete` | None | Number deleted |
 | `exists` | None | Existence result |
 | `ttl` | None | Seconds remaining; `-1` means no expiry, `-2` means missing |
@@ -65,11 +68,11 @@ For a basic FIFO queue, `list_push` with `direction: right`, then `list_pop` wit
 
 ## Write safety and packaging
 
-The eight mutations (`set`, `delete`, `expire`, `increment`, `hash_set`, `hash_delete`, `list_push`, `list_pop`) require the host's durable external-effect claim and are suppressed in test mode. The extension does not add Core locks. An error after sending a write is uncertain: do not retry automatically. Reconcile against your application state before deciding whether to repeat it. Host effect deduplication does not make server writes transactional with the host ledger.
+The nine mutations (`json_set`, `set`, `delete`, `expire`, `increment`, `hash_set`, `hash_delete`, `list_push`, `list_pop`) require the host's durable external-effect claim and are suppressed in test mode. The extension does not add Core locks. An error after sending a write is uncertain: do not retry automatically. Reconcile against your application state before deciding whether to repeat it. Host effect deduplication does not make server writes transactional with the host ledger.
 
 Only a fixed packaged native Toolbox binary may run. There is no command, executable, tool-config or credential override in action inputs. Each invocation uses one managed command and a private temporary configuration removed after completion or failure. Secrets remain masked in errors and logs. The bounded subprocess adapter enforces output limits and a hard timeout. The minimal pinned Toolbox build disables automatic Redis command retries and maps missing values to JSON null while surfacing command errors. The Go driver owns the network connection; Python does not implement an alternate Redis client. Release packages include pinned Linux amd64/arm64 binaries and checksums.
 
-There are no datasets, database triggers, subscriptions, arbitrary commands, EVAL, CONFIG, FLUSH, transactions or blocking pops. These actions do not provide cross-action serialization.
+Datasets provide the read-only logical views described below. There are no database triggers, subscriptions, arbitrary commands, EVAL, CONFIG, FLUSH, transactions or blocking pops. These actions do not provide cross-action serialization.
 
 ## Build and verify
 
@@ -93,3 +96,35 @@ these integration tests without claiming real database verification.
 The native build registers only the Redis-compatible source/tool packages needed
 for Valkey. Its preserved `flowsteward.redis-valkey` buildType is a reproducibility
 identifier for the pinned driver, not a second extension or connection type.
+
+## Dataset queries (1.1.0)
+
+New database connections use normal existing keys without hidden renaming. Workflow
+actions target either database connections or legacy project-state connections;
+legacy connections keep their original account/project/connection hash namespace.
+Database connections optionally restrict full supplied keys using a case-sensitive
+`key_prefix`; the prefix is checked, never prepended. Credentials still govern access.
+
+Dataset JSON definitions have exactly `resource_id`, `operation`, and `arguments`.
+Logical resources: `strings` (`get`, `mget`), `hashes` (`hget`, `hgetall`),
+`lists` (`lrange`), and `json` (`get`, `mget`). No scans, SQL, arbitrary commands,
+triggers, or writes are accepted by Datasets. Introspection describes these static
+views; connection testing contacts the server with PING. Example:
+
+```json
+{"resource_id":"json","operation":"get","arguments":{"key":{"$param":"key"}}}
+```
+
+Typed parameters are declared in `param_schema_jsonb.properties`. List reads use
+nonnegative `start` and `count` (1–100). Batch reads use `keys` (up to the row limit).
+Hash reads use `key` plus `field` for `hget`. Keys and prefix checks run after binding.
+Returned rows honour selected columns. Definitions are limited to 64 KiB, depth 20,
+and 10,000 nodes; results to 100 rows and 400 KiB; deadlines to 30 seconds including
+transport. Oversized hash results fail closed rather than scanning/paging.
+
+JSON is stored in ordinary string keys, without requiring RedisJSON modules.
+Workflow `json_set`/`json_get` preserve objects, arrays, booleans, numbers, and null.
+A JSON null returns `found: true`; missing keys return `found: false`. JSON Dataset
+reads omit missing keys and retain rows whose value is JSON null. Invalid stored
+JSON fails. Standard delete removes the whole document. JSON writes retain durable
+effect claims, test-mode suppression, and real workflow project-scope requirements.

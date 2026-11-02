@@ -1,10 +1,6 @@
-component_id: valkey_about
-type: markdown
-title: Valkey
-content: Read and write namespaced workflow state, counters, hashes and bounded lists
-  through a standalone Valkey project connection. TLS verifies the server
-  certificate; plaintext requires a private endpoint and host administrator opt-in.
-  Writes require a durable host effect claim and are suppressed in test mode. No database
-  triggers, cluster routing or arbitrary commands. See README.md for TTL, limits and
-  uncertain write handling. The extension adds no usage billing; your server provider
-  may charge for infrastructure.
+{
+  "component_id": "valkey_about",
+  "type": "markdown",
+  "title": "Valkey",
+  "content": "Read normal database keys and JSON through read-only Datasets. Workflow actions read and write JSON, text, counters, hashes and lists. New database connections use exact keys; legacy project state retains its namespace. TLS verifies certificates. Writes require durable host effect claims and are suppressed in test mode. No database triggers or arbitrary commands. See README.md for bounds and uncertain write handling."
+}

@@ -5,6 +5,7 @@ import contextlib
 import hashlib
 import ipaddress
 import json
+import multiprocessing
 import os
 from pathlib import Path
 import platform
@@ -20,7 +21,7 @@ ROOT = Path(__file__).resolve().parent
 MAX_OUTPUT = 1024 * 1024
 
 
-def _binary():
+def _native_target():
     arch = {
         "aarch64": "arm64",
         "arm64": "arm64",
@@ -29,7 +30,11 @@ def _binary():
     }.get(platform.machine().lower())
     if platform.system() != "Linux" or not arch:
         raise Failure("native_unavailable", "Toolbox requires Linux AMD64 or ARM64.")
-    target = "linux-" + arch
+    return "linux-" + arch
+
+
+def _binary():
+    target = _native_target()
     path = ROOT / "bin" / target / "toolbox"
     try:
         expected = json.loads((ROOT / "toolbox-provenance.json").read_text())["binaries"][target][
@@ -262,9 +267,68 @@ def _result(response):
         raise Failure("invalid_provider_response", "Toolbox result is not JSON.") from exc
 
 
+def _preflight_worker(output, config):
+    """Isolate SDK getaddrinfo and binary hashing so either can be terminated."""
+    try:
+        result = {"ok": True, "executable": _binary(), "ip": _endpoint(config)}
+    except Failure as exc:
+        result = {"ok": False, "code": exc.code, "message": str(exc)}
+    except Exception:
+        result = {
+            "ok": False,
+            "code": "provider_unavailable",
+            "message": "Endpoint preflight failed.",
+        }
+    try:
+        output.send_bytes(json.dumps(result).encode())
+    finally:
+        output.close()
+
+
+def _preflight(config, deadline):
+    _native_target()
+    # The native runtime is Linux-only. Fork preserves the pinned SDK network
+    # policy without an unbounded DNS thread or changing global socket settings.
+    context = multiprocessing.get_context("fork")
+    incoming, outgoing = context.Pipe(duplex=False)
+    worker = context.Process(
+        target=_preflight_worker, args=(outgoing, config), daemon=True, name="fs-kv-preflight"
+    )
+    try:
+        worker.start()
+        outgoing.close()
+        left = deadline - time.monotonic()
+        require(
+            left > 0 and incoming.poll(left),
+            "Endpoint preflight deadline exceeded.",
+            code="timeout",
+        )
+        result = json.loads(incoming.recv_bytes(8192))
+        require(
+            time.monotonic() < deadline, "Endpoint preflight deadline exceeded.", code="timeout"
+        )
+        require(isinstance(result, dict), "Invalid preflight result.", code="provider_unavailable")
+        if not result.get("ok"):
+            raise Failure(result["code"], result["message"])
+        return result["executable"], result["ip"]
+    except (OSError, EOFError, ValueError, KeyError, TypeError) as exc:
+        raise Failure("provider_unavailable", "Endpoint preflight failed.") from exc
+    finally:
+        if worker.pid is not None:
+            if worker.is_alive():
+                worker.terminate()
+            worker.join(timeout=0.1)
+            if worker.is_alive():
+                worker.kill()
+                worker.join()
+            worker.close()
+        incoming.close()
+        outgoing.close()
+
+
 def invoke(config, secrets, command, arguments, *, timeout_seconds):
-    executable = _binary()
-    ip = _endpoint(config)
+    deadline = time.monotonic() + timeout_seconds
+    executable, ip = _preflight(config, deadline)
     dispatched = False
     process = None
     try:
@@ -289,9 +353,9 @@ def invoke(config, secrets, command, arguments, *, timeout_seconds):
                 env={"LANG": "C.UTF-8"},
                 start_new_session=True,
             )
-            deadline = time.monotonic() + timeout_seconds
             state = {"bytes": 0, "buffer": bytearray()}
             try:
+                require(time.monotonic() < deadline, "Toolbox deadline exceeded.", code="timeout")
                 _send(
                     process,
                     {

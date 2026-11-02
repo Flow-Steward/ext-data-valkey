@@ -1,5 +1,6 @@
 page_id: connection
 title: Connections
-description: Configure your standalone Valkey server.
+description: Choose normal database access or isolated project state.
 components:
 - ref: "../components/valkey_connection_form.yaml"
+- ref: "../components/valkey_state_connection_form.yaml"

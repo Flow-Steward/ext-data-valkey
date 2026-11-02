@@ -84,3 +84,62 @@ def test_live_lifecycle(server, monkeypatch):
     assert call("list_range")["value"] == ["b", "a"]
     assert call("delete")["value"] == 1
     assert call("delete")["value"] == 0
+
+
+@pytest.mark.parametrize(
+    "server", SERVERS or [None], ids=lambda s: s["kind"] if s else "not-configured"
+)
+def test_live_normal_database_and_datasets(server, monkeypatch):
+    if server is None:
+        pytest.skip("Provide ignored tests/live-kv.local.json for disposable servers")
+    monkeypatch.setenv("FS_ALLOW_PRIVATE_REMOTE_URLS", "1")
+    from test_datasets import direct, request
+
+    def workflow(action, key, args=None):
+        p = direct(action, {"key": key, **(args or {})})
+        c = p["action"]["target"]["connection"]
+        c["config"].update(host=server["host"], tls=False, key_prefix="fs-normal:")
+        c["secrets"] = {"password": server.get("password", "")}
+        r = main.handle(p)
+        assert r["ok"], r
+        return r["result"]
+
+    def dataset(resource, operation="get", arguments=None, action="preview_query"):
+        p = request(action, resource, operation, arguments or {"key": "fs-normal:seed"})
+        p["action"]["input"]["connection_config"].update(
+            host=server["host"], tls=False, key_prefix="fs-normal:"
+        )
+        r = main.handle(p)
+        assert r["ok"], r
+        return r["result"]
+
+    assert workflow("get", "fs-normal:seed")["value"] == "native-seed"
+    assert dataset("strings")["rows"] == [{"key": "fs-normal:seed", "value": "native-seed"}]
+    assert dataset("strings", action="test_connection")["status"] == "ok"
+    key = "fs-normal:" + uuid4().hex
+    for value in [{"nested": [1, False, None]}, [1, "a"], False, 0, None]:
+        assert workflow("json_set", key, {"value": value})["applied"]
+        assert workflow("json_get", key) == {
+            "key": key,
+            "value": value,
+            "found": True,
+            "applied": False,
+        }
+        assert dataset("json", arguments={"key": key})["rows"] == [{"key": key, "value": value}]
+    assert dataset("strings", "mget", {"keys": ["fs-normal:seed", key]})["row_count"] == 2
+    workflow("delete", key)
+    assert not workflow("json_get", key)["found"]
+    assert dataset("json", arguments={"key": key})["rows"] == []
+    workflow("hash_set", key, {"fields": {"one": "v", "two": "$literal"}})
+    rows = dataset("hashes", "hgetall", {"key": key})["rows"]
+    assert {r["field"]: r["value"] for r in rows} == {"one": "v", "two": "$literal"}
+    assert dataset("hashes", "hget", {"key": key, "field": "one"})["rows"] == [
+        {"field": "one", "value": "v"}
+    ]
+    workflow("delete", key)
+    workflow("list_push", key, {"values": ["a", "b", "c"]})
+    assert dataset("lists", "lrange", {"key": key, "start": 1, "count": 2})["rows"] == [
+        {"index": 1, "value": "b"},
+        {"index": 2, "value": "c"},
+    ]
+    workflow("delete", key)
