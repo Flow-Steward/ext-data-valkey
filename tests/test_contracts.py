@@ -38,7 +38,7 @@ def test_identity_and_host_contract():
     manifest = load("extension.yaml")
     descriptor = load("extension-descriptor.yaml")
     assert manifest["extension_id"] == descriptor["extension_id"] == "flowsteward.valkey"
-    assert manifest["version"] == descriptor["release_version"] == "1.1.0"
+    assert manifest["version"] == descriptor["release_version"] == "1.1.1"
     assert manifest["kind"] == "tool_provider"
     assert manifest["required_scopes"] == ["extension:invoke"]
     assert manifest["features"] == ["tool", "action", "dataset_connector"]
@@ -181,3 +181,14 @@ def test_ui_resolves_one_connection_form_and_uses_masked_secrets():
             "username",
             "password",
         }
+
+
+def test_native_dataset_requires_platform_1_5_in_both_descriptors():
+    minimums = {
+        filename: load(filename)["runtime"]["compatibility"]["platform_min"]
+        for filename in ("extension.yaml", "extension-descriptor.yaml")
+    }
+    assert minimums == {
+        "extension.yaml": "1.5.0",
+        "extension-descriptor.yaml": "1.5.0",
+    }

@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "extension_id": "flowsteward.valkey",
   "kind": "tool_provider",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "release_stage": "active",
   "display_name": "Valkey",
   "description": "Valkey normal-key and JSON Datasets, with guarded workflows and compatible project state.",
@@ -60,7 +60,7 @@
   "runtime": {
     "contract_version": "extension_host_v2",
     "compatibility": {
-      "platform_min": "1.4.0"
+      "platform_min": "1.5.0"
     },
     "extension_contract_v2": {
       "connection_types": "contracts/connection_types.yaml",
