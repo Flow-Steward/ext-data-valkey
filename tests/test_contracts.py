@@ -38,7 +38,7 @@ def test_identity_and_host_contract():
     manifest = load("extension.yaml")
     descriptor = load("extension-descriptor.yaml")
     assert manifest["extension_id"] == descriptor["extension_id"] == "flowsteward.valkey"
-    assert manifest["version"] == descriptor["release_version"] == "1.1.1"
+    assert manifest["version"] == descriptor["release_version"] == "1.1.2"
     assert manifest["kind"] == "tool_provider"
     assert manifest["required_scopes"] == ["extension:invoke"]
     assert manifest["features"] == ["tool", "action", "dataset_connector"]

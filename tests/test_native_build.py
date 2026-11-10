@@ -9,7 +9,7 @@ from pathlib import Path
 EXTENSION = Path(__file__).resolve().parents[1]
 COMMIT = "b0010060a939455d91e4f8ba62dc3e72b1892469"
 IMAGE = (
-    "golang:1.26.2-bookworm@sha256:47ce5636e9936b2c5cbf708925578ef386b4f8872aec74a67bd13a627d242b19"
+    "golang:1.26.10-bookworm@sha256:5de7c99eb78ca5e515a4c340235d0955ec5964a5071c492c15503d7c267da473"
 )
 
 

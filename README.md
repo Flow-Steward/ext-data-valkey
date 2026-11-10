@@ -1,6 +1,6 @@
 # Valkey
 
-`flowsteward.valkey` 1.1.1 is a standalone host-v2 tool provider for normal database keys, JSON Datasets, workflow state, counters, hashes and basic queues. Create an explicit **Valkey** database or project-state connection and select it in each workflow action. This independent extension uses the Redis-compatible Google MCP Toolbox driver. The extension has no usage billing; your database or infrastructure provider may charge separately.
+`flowsteward.valkey` 1.1.2 is a standalone host-v2 tool provider for normal database keys, JSON Datasets, workflow state, counters, hashes and basic queues. Create an explicit **Valkey** database or project-state connection and select it in each workflow action. This independent extension uses the Redis-compatible Google MCP Toolbox driver. The extension has no usage billing; your database or infrastructure provider may charge separately.
 
 Flow Steward platform 1.5.0 or newer is required for native JSON Datasets and artifact-free service extensions.
 
