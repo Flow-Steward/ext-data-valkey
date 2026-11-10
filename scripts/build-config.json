@@ -10,5 +10,6 @@
   "packages": [
     "github.com/googleapis/mcp-toolbox/internal/sources/redis",
     "github.com/googleapis/mcp-toolbox/internal/tools/redis"
-  ]
+  ],
+  "go_image_role": "bootstrap"
 }
