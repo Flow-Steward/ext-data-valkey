@@ -7,14 +7,14 @@ import struct
 from pathlib import Path
 
 EXTENSION = Path(__file__).resolve().parents[1]
-COMMIT = "b0010060a939455d91e4f8ba62dc3e72b1892469"
+COMMIT = "06ea49d9a487a72c22419b5a8d5c22c11f0d7485"
 IMAGE = (
-    "golang:1.26.10-bookworm@sha256:5de7c99eb78ca5e515a4c340235d0955ec5964a5071c492c15503d7c267da473"
+    "golang:1.27.3-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0"
 )
 
 
 def test_native_build_pins_source_and_minimal_driver():
-    script = (EXTENSION / "scripts/build_toolbox.sh").read_text()
+    script = ((EXTENSION / "scripts/build_toolbox.sh").read_text() + (EXTENSION / "scripts/build_inside.sh").read_text())
     assert COMMIT in script
     assert IMAGE in script
     assert "git apply" in script
@@ -44,7 +44,7 @@ def test_native_patch_disables_retries_and_preserves_nil_and_errors():
 def test_packaged_native_binaries_match_provenance():
     provenance = json.loads((EXTENSION / "toolbox-provenance.json").read_text())
     assert provenance["commit"] == COMMIT
-    assert provenance["tag"] == "v1.3.0"
+    assert provenance["tag"] == "v1.16.0"
     assert provenance["go_image"] == IMAGE
     assert provenance["packages"] == [
         "github.com/googleapis/mcp-toolbox/internal/sources/redis",
