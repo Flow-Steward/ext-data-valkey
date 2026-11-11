@@ -2,10 +2,10 @@
   "manifest_version": 2,
   "extension_id": "flowsteward.valkey",
   "kind": "tool_provider",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "release_stage": "active",
   "display_name": "Valkey",
-  "description": "Valkey normal-key and JSON Datasets, with guarded workflows and compatible project state.",
+  "description": "Connect Valkey to Flow Steward for small pieces of workflow state, duplicate-event checks and simple list processing. Read or set text and whole JSON values, delete keys, check existence or TTL, apply expiry and increment counters. Hash actions manage fields and values; list actions push or pop items, read a range and return length. Conditional SET supports create-only or update-only changes with optional expiry and reports whether a change applied.\n\nRead-only Dataset views address explicit string, hash, list and JSON keys using saved definitions and typed parameters, with connection testing, validation, previews and schema inference. JSON is stored in normal string keys without a JSON module. Database connections can use existing keys and enforce an allowed key prefix; legacy project-state connections preserve their account/project/connection namespace.\n\nUse create-only SET plus a TTL to claim an incoming event, or push right and pop left for a FIFO list. Choose an expiry appropriate to the duplicate window and check the applied result before continuing. These patterns provide neither exactly-once processing nor acknowledged delivery: list pops remove items immediately. The extension targets a single standalone server and exposes fixed commands rather than cluster discovery, arbitrary scripting or database subscriptions.",
   "lifecycle": {
     "data_schema_version": 1,
     "data_migrations": []
@@ -19,7 +19,8 @@
       "valkey",
       "toolbox"
     ],
-    "summary": "Workflow state, deduplication and bounded queues."
+    "summary": "Use Valkey for workflow state, JSON values, counters, hashes and list queues, plus read-only Dataset views.",
+    "setup_summary": "On Flow Steward 1.5.0+, create a Valkey database or project-state connection with a standalone host, port, database number, TLS settings and optional ACL secrets. Private endpoints need host administrator permission; use a least-privilege account and an optional key_prefix for existing database keys."
   },
   "features": [
     "tool",

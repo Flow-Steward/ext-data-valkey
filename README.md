@@ -1,6 +1,14 @@
 # Valkey
 
-`flowsteward.valkey` 1.1.2 is a standalone host-v2 tool provider for normal database keys, JSON Datasets, workflow state, counters, hashes and basic queues. Create an explicit **Valkey** database or project-state connection and select it in each workflow action. This independent extension uses the Redis-compatible Google MCP Toolbox driver. The extension has no usage billing; your database or infrastructure provider may charge separately.
+Flow Steward extension `flowsteward.valkey`, version **1.1.5**.
+
+Connect Valkey to Flow Steward for small pieces of workflow state, duplicate-event checks and simple list processing. Read or set text and whole JSON values, delete keys, check existence or TTL, apply expiry and increment counters. Hash actions manage fields and values; list actions push or pop items, read a range and return length. Conditional SET supports create-only or update-only changes with optional expiry and reports whether a change applied.
+
+Read-only Dataset views address explicit string, hash, list and JSON keys using saved definitions and typed parameters, with connection testing, validation, previews and schema inference. JSON is stored in normal string keys without a JSON module. Database connections can use existing keys and enforce an allowed key prefix; legacy project-state connections preserve their account/project/connection namespace.
+
+Use create-only SET plus a TTL to claim an incoming event, or push right and pop left for a FIFO list. Choose an expiry appropriate to the duplicate window and check the applied result before continuing. These patterns provide neither exactly-once processing nor acknowledged delivery: list pops remove items immediately. The extension targets a single standalone server and exposes fixed commands rather than cluster discovery, arbitrary scripting or database subscriptions.
+
+On Flow Steward 1.5.0+, create a Valkey database or project-state connection with a standalone host, port, database number, TLS settings and optional ACL secrets. Private endpoints need host administrator permission; use a least-privilege account and an optional key_prefix for existing database keys.
 
 Flow Steward platform 1.5.0 or newer is required for native JSON Datasets and artifact-free service extensions.
 
