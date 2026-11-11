@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "extension_id": "flowsteward.valkey",
+  "runtime_targets": [
+    "linux-amd64",
+    "linux-arm64"
+  ],
+  "package_script": "scripts/package_extension.py",
+  "test_requirements": [
+    "requirements-dev.txt"
+  ],
+  "test_paths": [
+    "tests/test_contracts.py",
+    "tests/test_datasets.py",
+    "tests/test_native_build.py",
+    "tests/test_native_registrations.py",
+    "tests/test_package.py",
+    "tests/test_runtime.py",
+    "tests/test_security_floor.py",
+    "tests/test_toolbox.py"
+  ],
+  "additional_assets": [],
+  "payload_sources": [
+    {
+      "target": "linux-amd64",
+      "url": "https://github.com/Flow-Steward/ext-data-valkey/releases/download/v1.1.4/flowsteward.valkey-1.1.4-linux-amd64.zip",
+      "bytes": 12897369,
+      "sha256": "c1342dfd35cd93f836438661202e53d05aea29cc41df89329890ba3c348c6930",
+      "restore_paths": [
+        "bin/linux-amd64/toolbox"
+      ]
+    },
+    {
+      "target": "linux-arm64",
+      "url": "https://github.com/Flow-Steward/ext-data-valkey/releases/download/v1.1.4/flowsteward.valkey-1.1.4-linux-arm64.zip",
+      "bytes": 11511303,
+      "sha256": "67d35268966319a89231eaeaa6673d3860cb5e25b459872533b8d218137231dd",
+      "restore_paths": [
+        "bin/linux-arm64/toolbox"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Valkey
 
-Flow Steward extension `flowsteward.valkey`, version **1.1.5**.
+Flow Steward extension `flowsteward.valkey`, version **1.1.6**.
 
 Connect Valkey to Flow Steward for small pieces of workflow state, duplicate-event checks and simple list processing. Read or set text and whole JSON values, delete keys, check existence or TTL, apply expiry and increment counters. Hash actions manage fields and values; list actions push or pop items, read a range and return length. Conditional SET supports create-only or update-only changes with optional expiry and reports whether a change applied.
 
@@ -138,3 +138,31 @@ A JSON null returns `found: true`; missing keys return `found: false`. JSON Data
 reads omit missing keys and retain rows whose value is JSON null. Invalid stored
 JSON fails. Standard delete removes the whole document. JSON writes retain durable
 effect claims, test-mode suppression, and real workflow project-scope requirements.
+
+## Automated releases
+
+CI runs on pull requests and pushes to `main`. Official releases run through the
+pinned shared GitHub Actions workflow using `.github/release-config.json` to test,
+package both Linux runtime targets, and publish the release assets automatically.
+Manual ZIP uploads are not part of the release process.
+
+After merging the version **1.1.6** update into `main`, create and push its tag:
+
+```sh
+git switch main
+git pull --ff-only
+git tag -a v1.1.6 -m "Release v1.1.6"
+git push origin v1.1.6
+```
+
+To rerun the workflow for an existing tag without moving it:
+
+```sh
+gh workflow run release.yml --ref main -f tag=v1.1.6
+```
+
+The manifest remains the source for release identity and catalog descriptions.
+The shared workflow installs the verified first-party SDK wheel before test
+dependencies. Where native payloads are absent from source, the recipe restores
+only the listed missing files from checksum-pinned published archives; the source
+packager still verifies their provenance before packaging.
