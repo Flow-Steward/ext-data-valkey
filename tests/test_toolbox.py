@@ -2,9 +2,12 @@
 
 import inspect
 import multiprocessing
-from pathlib import Path
+import sys
 import time
+from pathlib import Path
+
 import pytest
+
 import toolbox
 from validation import Failure
 
@@ -20,7 +23,7 @@ CONFIG = {
 
 def fake_binary(tmp_path, monkeypatch, body):
     script = tmp_path / "fake-toolbox"
-    script.write_text("#!/usr/local/bin/python\nimport json,sys,os,time\n" + body)
+    script.write_text(f"#!{sys.executable}\nimport json,sys,os,time\n" + body)
     script.chmod(0o700)
     monkeypatch.setattr(toolbox, "_binary", lambda: str(script))
     monkeypatch.setattr(toolbox, "_endpoint", lambda config: "127.0.0.1")
