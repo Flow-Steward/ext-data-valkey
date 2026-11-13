@@ -3,7 +3,7 @@
     {
       "action_id": "get",
       "workflow_visible": true,
-      "title": "Get",
+      "title": "Text: Read a value",
       "description": "Read a text value. Missing keys return null with found false; empty strings remain found.",
       "required_scopes": [
         "extension:invoke"
@@ -50,7 +50,7 @@
     {
       "action_id": "set",
       "workflow_visible": true,
-      "title": "Set",
+      "title": "Text: Save a value",
       "description": "Atomically set a text value with optional TTL and NX or XX condition. An unmet condition returns applied false and value null.",
       "required_scopes": [
         "extension:invoke"
@@ -112,7 +112,7 @@
     {
       "action_id": "delete",
       "workflow_visible": true,
-      "title": "Delete",
+      "title": "Key: Delete a stored value",
       "description": "Delete a key. Returns the number of keys deleted.",
       "required_scopes": [
         "extension:invoke"
@@ -159,7 +159,7 @@
     {
       "action_id": "exists",
       "workflow_visible": true,
-      "title": "Exists",
+      "title": "Key: Check whether it exists",
       "description": "Return whether the key exists.",
       "required_scopes": [
         "extension:invoke"
@@ -206,7 +206,7 @@
     {
       "action_id": "ttl",
       "workflow_visible": true,
-      "title": "Ttl",
+      "title": "Key: Read remaining expiry time",
       "description": "Read remaining TTL in seconds: -1 means no expiry and -2 means missing.",
       "required_scopes": [
         "extension:invoke"
@@ -253,7 +253,7 @@
     {
       "action_id": "expire",
       "workflow_visible": true,
-      "title": "Expire",
+      "title": "Key: Set expiry time",
       "description": "Set an existing key expiry in seconds.",
       "required_scopes": [
         "extension:invoke"
@@ -305,8 +305,8 @@
     {
       "action_id": "increment",
       "workflow_visible": true,
-      "title": "Increment",
-      "description": "Atomically add an IEEE-safe integer to a counter.",
+      "title": "Counter: Add or subtract an integer",
+      "description": "Atomically add an integer to a numeric text value; use a negative amount to subtract. A missing key starts at zero. The result must remain within the safe integer range.",
       "required_scopes": [
         "extension:invoke"
       ],
@@ -357,7 +357,7 @@
     {
       "action_id": "hash_get",
       "workflow_visible": true,
-      "title": "Hash get",
+      "title": "Hash: Read one field",
       "description": "Read one text field from a hash.",
       "required_scopes": [
         "extension:invoke"
@@ -409,7 +409,7 @@
     {
       "action_id": "hash_set",
       "workflow_visible": true,
-      "title": "Hash set",
+      "title": "Hash: Save field values",
       "description": "Set up to 64 hash fields. Returns the number of newly added fields.",
       "required_scopes": [
         "extension:invoke"
@@ -461,7 +461,7 @@
     {
       "action_id": "hash_delete",
       "workflow_visible": true,
-      "title": "Hash delete",
+      "title": "Hash: Delete selected fields",
       "description": "Remove up to 64 hash fields. Returns the number removed.",
       "required_scopes": [
         "extension:invoke"
@@ -513,7 +513,7 @@
     {
       "action_id": "hash_get_all",
       "workflow_visible": true,
-      "title": "Hash get all",
+      "title": "Hash: Read all fields",
       "description": "Read a bounded hash. Results exceeding the output limit fail without truncation.",
       "required_scopes": [
         "extension:invoke"
@@ -560,7 +560,7 @@
     {
       "action_id": "list_push",
       "workflow_visible": true,
-      "title": "List push",
+      "title": "List: Add values at either end",
       "description": "Push up to 64 text values to the selected list end. Returns list length.",
       "required_scopes": [
         "extension:invoke"
@@ -617,7 +617,7 @@
     {
       "action_id": "list_pop",
       "workflow_visible": true,
-      "title": "List pop",
+      "title": "List: Remove and return one value",
       "description": "Pop one value from the selected list end without blocking.",
       "required_scopes": [
         "extension:invoke"
@@ -669,7 +669,7 @@
     {
       "action_id": "list_range",
       "workflow_visible": true,
-      "title": "List range",
+      "title": "List: Read a range of values",
       "description": "Read up to 100 list values starting at a nonnegative index.",
       "required_scopes": [
         "extension:invoke"
@@ -726,7 +726,7 @@
     {
       "action_id": "list_length",
       "workflow_visible": true,
-      "title": "List length",
+      "title": "List: Count stored values",
       "description": "Read list length.",
       "required_scopes": [
         "extension:invoke"
@@ -773,7 +773,7 @@
     {
       "action_id": "json_get",
       "workflow_visible": true,
-      "title": "JSON get",
+      "title": "JSON: Read a stored value",
       "description": "Read JSON stored as an ordinary string; found distinguishes JSON null from a missing key.",
       "required_scopes": [
         "extension:invoke"
@@ -820,8 +820,8 @@
     {
       "action_id": "json_set",
       "workflow_visible": true,
-      "title": "JSON set",
-      "description": "Store any JSON value as an ordinary string. Database connections use the exact supplied key.",
+      "title": "JSON: Save a complete value",
+      "description": "Serialize any JSON value into an ordinary string key. Replaces the whole value; optional expiry and create/update conditions use the same rules as text writes.",
       "required_scopes": [
         "extension:invoke"
       ],

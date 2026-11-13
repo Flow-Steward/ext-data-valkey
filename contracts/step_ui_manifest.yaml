@@ -2,301 +2,367 @@
   "forms": [
     {
       "operation_id": "get",
-      "title": "Get",
+      "title": "Text: Read a value",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         }
       ]
     },
     {
       "operation_id": "set",
-      "title": "Set",
+      "title": "Text: Save a value",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         },
         {
           "name": "value",
           "widget_type": "textarea",
-          "label": "Value",
-          "required": true
+          "label": "Text value",
+          "required": true,
+          "help_text": "Complete text value to save, replacing the old value. Use the JSON action for structured JSON values.",
+          "placeholder": "approved"
         },
         {
           "name": "ttl_seconds",
           "widget_type": "integer",
-          "label": "Ttl seconds",
-          "required": false
+          "label": "Expiry in seconds",
+          "required": false,
+          "help_text": "Positive integer seconds, up to 2147483647. On Save, omit for a value without expiry (an existing expiry is removed). Set expiry changes the expiry of an existing key.",
+          "placeholder": "3600"
         },
         {
           "name": "condition",
           "widget_type": "textarea",
-          "label": "Condition",
-          "required": false
+          "label": "Write condition",
+          "required": false,
+          "help_text": "always writes unconditionally (default); nx writes only if the key is absent; xx writes only if it exists. An unmet condition returns applied=false.",
+          "placeholder": "nx"
         }
       ]
     },
     {
       "operation_id": "delete",
-      "title": "Delete",
+      "title": "Key: Delete a stored value",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         }
       ]
     },
     {
       "operation_id": "exists",
-      "title": "Exists",
+      "title": "Key: Check whether it exists",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         }
       ]
     },
     {
       "operation_id": "ttl",
-      "title": "Ttl",
+      "title": "Key: Read remaining expiry time",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         }
       ]
     },
     {
       "operation_id": "expire",
-      "title": "Expire",
+      "title": "Key: Set expiry time",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         },
         {
           "name": "ttl_seconds",
           "widget_type": "integer",
-          "label": "Ttl seconds",
-          "required": true
+          "label": "Expiry in seconds",
+          "required": true,
+          "help_text": "Positive integer seconds, up to 2147483647. On Save, omit for a value without expiry (an existing expiry is removed). Set expiry changes the expiry of an existing key.",
+          "placeholder": "3600"
         }
       ]
     },
     {
       "operation_id": "increment",
-      "title": "Increment",
+      "title": "Counter: Add or subtract an integer",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         },
         {
           "name": "amount",
           "widget_type": "integer",
-          "label": "Amount",
-          "required": false
+          "label": "Integer amount to add",
+          "required": false,
+          "help_text": "Positive to increment or negative to decrement; defaults to 1. Input and resulting counter must stay within ±9007199254740991.",
+          "placeholder": "1"
         }
       ]
     },
     {
       "operation_id": "hash_get",
-      "title": "Hash get",
+      "title": "Hash: Read one field",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         },
         {
           "name": "field",
           "widget_type": "textarea",
-          "label": "Field",
-          "required": true
+          "label": "Hash field name",
+          "required": true,
+          "help_text": "Exact field name inside the hash stored at this key.",
+          "placeholder": "status"
         }
       ]
     },
     {
       "operation_id": "hash_set",
-      "title": "Hash set",
+      "title": "Hash: Save field values",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         },
         {
           "name": "fields",
           "widget_type": "json",
-          "label": "Fields",
-          "required": true
+          "label": "Hash fields (JSON)",
+          "required": true,
+          "help_text": "Object containing 1–64 field names and text values. Existing named fields are replaced; other hash fields remain.",
+          "placeholder": "{\"status\":\"approved\",\"owner\":\"team_a\"}"
         }
       ]
     },
     {
       "operation_id": "hash_delete",
-      "title": "Hash delete",
+      "title": "Hash: Delete selected fields",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         },
         {
           "name": "fields",
           "widget_type": "json",
-          "label": "Fields",
-          "required": true
+          "label": "Hash field names to delete (JSON)",
+          "required": true,
+          "help_text": "Array of 1–64 exact field names to remove from this hash. Other fields remain.",
+          "placeholder": "[\"status\",\"owner\"]"
         }
       ]
     },
     {
       "operation_id": "hash_get_all",
-      "title": "Hash get all",
+      "title": "Hash: Read all fields",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         }
       ]
     },
     {
       "operation_id": "list_push",
-      "title": "List push",
+      "title": "List: Add values at either end",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         },
         {
           "name": "values",
           "widget_type": "json",
-          "label": "Values",
-          "required": true
+          "label": "List values to add (JSON)",
+          "required": true,
+          "help_text": "Array of 1–64 text values. Values are pushed in supplied order; pushing multiple values on the left places the last supplied value first.",
+          "placeholder": "[\"order_1042\",\"order_1043\"]"
         },
         {
           "name": "direction",
           "widget_type": "textarea",
-          "label": "Direction",
-          "required": false
+          "label": "List end",
+          "required": false,
+          "help_text": "left or right. Push defaults to right; pop defaults to left. A pop removes one item without waiting for new items.",
+          "placeholder": "left"
         }
       ]
     },
     {
       "operation_id": "list_pop",
-      "title": "List pop",
+      "title": "List: Remove and return one value",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         },
         {
           "name": "direction",
           "widget_type": "textarea",
-          "label": "Direction",
-          "required": false
+          "label": "List end",
+          "required": false,
+          "help_text": "left or right. Push defaults to right; pop defaults to left. A pop removes one item without waiting for new items.",
+          "placeholder": "left"
         }
       ]
     },
     {
       "operation_id": "list_range",
-      "title": "List range",
+      "title": "List: Read a range of values",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         },
         {
           "name": "start",
           "widget_type": "integer",
-          "label": "Start",
-          "required": false
+          "label": "Starting list index",
+          "required": false,
+          "help_text": "Zero-based nonnegative index of the first value to read.",
+          "placeholder": "0"
         },
         {
           "name": "count",
           "widget_type": "integer",
-          "label": "Count",
-          "required": false
+          "label": "Maximum list values",
+          "required": false,
+          "help_text": "Read 1–100 values starting at the specified index; fewer are returned at the end of the list.",
+          "placeholder": "20"
         }
       ]
     },
     {
       "operation_id": "list_length",
-      "title": "List length",
+      "title": "List: Count stored values",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         }
       ]
     },
     {
       "operation_id": "json_get",
-      "title": "JSON get",
+      "title": "JSON: Read a stored value",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         }
       ]
     },
     {
       "operation_id": "json_set",
-      "title": "JSON set",
+      "title": "JSON: Save a complete value",
       "fields": [
         {
           "name": "key",
           "widget_type": "textarea",
-          "label": "Key",
-          "required": true
+          "label": "Stored key",
+          "required": true,
+          "help_text": "For a database connection use the exact key, including its required configured prefix. A namespaced connection scopes this logical key to the account, project and connection.",
+          "placeholder": "orders:1042"
         },
         {
           "name": "value",
           "widget_type": "json",
-          "label": "Value",
-          "required": true
+          "label": "Complete JSON value",
+          "required": true,
+          "help_text": "Any JSON value to serialize and store as an ordinary text key. Replaces the whole stored value, not individual JSON paths.",
+          "placeholder": "{\"status\":\"approved\",\"order_id\":1042}"
         },
         {
           "name": "ttl_seconds",
           "widget_type": "integer",
-          "label": "Ttl seconds",
-          "required": false
+          "label": "Expiry in seconds",
+          "required": false,
+          "help_text": "Positive integer seconds, up to 2147483647. On Save, omit for a value without expiry (an existing expiry is removed). Set expiry changes the expiry of an existing key.",
+          "placeholder": "3600"
         },
         {
           "name": "condition",
           "widget_type": "textarea",
-          "label": "Condition",
-          "required": false
+          "label": "Write condition",
+          "required": false,
+          "help_text": "always writes unconditionally (default); nx writes only if the key is absent; xx writes only if it exists. An unmet condition returns applied=false.",
+          "placeholder": "nx"
         }
       ]
     }

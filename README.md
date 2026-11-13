@@ -1,6 +1,8 @@
 # Valkey
 
-Flow Steward extension `flowsteward.valkey`, version **1.1.6**.
+See [Workflow action guide](docs/workflow-actions.md) for action selection, setup requirements and JSON field examples.
+
+Flow Steward extension `flowsteward.valkey`, version **1.1.7**.
 
 Connect Valkey to Flow Steward for small pieces of workflow state, duplicate-event checks and simple list processing. Read or set text and whole JSON values, delete keys, check existence or TTL, apply expiry and increment counters. Hash actions manage fields and values; list actions push or pop items, read a range and return length. Conditional SET supports create-only or update-only changes with optional expiry and reports whether a change applied.
 
@@ -146,19 +148,19 @@ pinned shared GitHub Actions workflow using `.github/release-config.json` to tes
 package both Linux runtime targets, and publish the release assets automatically.
 Manual ZIP uploads are not part of the release process.
 
-After merging the version **1.1.6** update into `main`, create and push its tag:
+After merging the version **1.1.7** update into `main`, create and push its tag:
 
 ```sh
 git switch main
 git pull --ff-only
-git tag -a v1.1.6 -m "Release v1.1.6"
-git push origin v1.1.6
+git tag -a v1.1.7 -m "Release v1.1.7"
+git push origin v1.1.7
 ```
 
 To rerun the workflow for an existing tag without moving it:
 
 ```sh
-gh workflow run release.yml --ref main -f tag=v1.1.6
+gh workflow run release.yml --ref main -f tag=v1.1.7
 ```
 
 The manifest remains the source for release identity and catalog descriptions.
