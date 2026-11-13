@@ -67,13 +67,17 @@ def source(tmp_path):
             "go_version": version,
             "modules": modules,
             "build_info": raw,
+            "replacements": helper.replacements(raw),
         }
     provenance = json.loads((ROOT / "toolbox-provenance.json").read_text())
     provenance["binaries"] = records
     (root / "toolbox-provenance.json").write_text(json.dumps(provenance))
+    (root / "SHA256SUMS").write_text("".join(entry["sha256"] + "  " + entry["path"] + "\n" for entry in records.values()))
     patch = Path("scripts/patches/0000-security-baseline.patch")
     (root / patch).parent.mkdir(parents=True)
     shutil.copyfile(ROOT / patch, root / patch)
+    safety_patch = Path('scripts/patches/0002-flowsteward-key-value-safety.patch')
+    shutil.copyfile(ROOT / safety_patch, root / safety_patch)
     approved = Path("scripts/patches/0000-approved-prebuilt-profiles.patch")
     shutil.copyfile(ROOT / approved, root / approved)
     for name in ("native_build_info.py", "package_extension.py", "security-floor.json", "install-go-toolchain.sh", "go-toolchain-sources.json", "go-toolchain-selected.json"):
@@ -104,7 +108,7 @@ def test_archive_is_reproducible_and_contains_one_declared_target(source, tmp_pa
     (source / "outside-link").symlink_to(tmp_path / "secret")
     first = module.package_extension(source, target, tmp_path / "one")
     second = module.package_extension(source, target, tmp_path / "two")
-    assert first.name == f"flowsteward.valkey-1.1.7-{target}.zip"
+    assert first.name == f"flowsteward.valkey-1.1.8-{target}.zip"
     assert first.read_bytes() == second.read_bytes()
     prefix = "flowsteward_valkey/"
     with zipfile.ZipFile(first) as archive:

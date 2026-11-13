@@ -7,3 +7,9 @@ __pycache__/
 /dev-wheels/
 /dist/
 /tests/live-kv.local.json
+
+# Native CI outputs; reviewed build recipes remain tracked.
+/toolbox-provenance.json
+/SHA256SUMS
+/scripts/go-toolchain-selected.json
+/bin/

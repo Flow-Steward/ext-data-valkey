@@ -4,7 +4,7 @@ sh /out/scripts/install-go-toolchain.sh /out/scripts/go-toolchain-selected.json
 cp -a /upstream /src
 cd /src
 git apply /out/scripts/patches/0000-security-baseline.patch
-printf '%s\n' 'f547c08375f72e483c269c214f1a5190a8d81237687455549f829aac5a8d7d51  go.mod' '5c713561f5dce0e9c5c38977c925f54c94a4bec1095642cb6d04baaa612beacd  go.sum' | sha256sum -c -
+printf '%s\n' 'ce3c45e7f5d6cb877b357f035a70e3015d00818a5a1d354e714ea28340ae3bf9  go.mod' 'a90a6478c08aa41ef8201589a0ec5ab4e12b9271e8cfee538bb199f3386e2553  go.sum' | sha256sum -c -
 export GOFLAGS=-mod=readonly GOTOOLCHAIN=local GOMAXPROCS=2
 test "$(go version | cut -d ' ' -f 3)" = go1.27.4
 git apply /out/scripts/patches/0000-approved-prebuilt-profiles.patch
@@ -24,7 +24,7 @@ export SOURCE_DATE_EPOCH=1793908560
 for target in linux-amd64 linux-arm64; do
  arch=${target#linux-}
  mkdir -p /out/bin/$target
- CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -p 1 -trimpath -buildvcs=false -ldflags "-s -w -buildid= -X github.com/googleapis/mcp-toolbox/cmd.buildType=flowsteward.redis-valkey -X github.com/googleapis/mcp-toolbox/cmd.commitSha=06ea49d9a487a72c22419b5a8d5c22c11f0d7485" -o /out/bin/$target/toolbox .
+ CGO_ENABLED=0 GOOS=linux GOARCH=$arch go build -p 1 -trimpath -buildvcs=false -ldflags "-s -w -buildid= -X github.com/googleapis/mcp-toolbox/cmd.buildType=flowsteward.redis-valkey -X github.com/googleapis/mcp-toolbox/cmd.commitSha=45ed205cc8682ed066c82e0b65bcd0e8fc3becce" -o /out/bin/$target/toolbox .
  chmod 0755 /out/bin/$target/toolbox
  echo "[PASS] $target $(stat -c %s /out/bin/$target/toolbox) bytes"
 done

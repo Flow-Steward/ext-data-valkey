@@ -49,7 +49,7 @@ def test_shipped_binary_go_security_floor(target):
 def test_native_dependency_baseline_digest():
     baseline = ROOT / "scripts/patches/0000-security-baseline.patch"
     assert hashlib.sha256(baseline.read_bytes()).hexdigest() == (
-        "958ad7a46b015c6520d1c60037c4e6fab41e756d417a618c612f08ac8806dfe7"
+        "1d59fb359f69dc0a15d9e74b33347a60cd7328c60e53abfeb753faad264663fe"
     )
     info = json.loads((ROOT / "toolbox-provenance.json").read_text())
     assert info["security_baseline"]["sha256"] == hashlib.sha256(baseline.read_bytes()).hexdigest()
@@ -59,3 +59,9 @@ def test_native_dependency_baseline_digest():
 def test_security_floor_rejects_unreviewed_compiler(version):
     with pytest.raises(ValueError, match="compiler"):
         NATIVE.check_security_floor(version, {"golang.org/x/net": "v0.62.0"}, "")
+
+
+@pytest.mark.parametrize("name", ["golang.org/x/net", "example.com/unreviewed"])
+def test_security_floor_rejects_unreviewed_local_replacement(name):
+    with pytest.raises(ValueError, match="unmodeled replacement"):
+        NATIVE.check_security_floor("go1.27.4", {name: "v9.9.9"}, f"dep\t{name}\tv9.9.9\t\n=>\t/tmp/unreviewed\t(devel)\t\n")

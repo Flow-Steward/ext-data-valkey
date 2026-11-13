@@ -7,7 +7,7 @@ import struct
 from pathlib import Path
 
 EXTENSION = Path(__file__).resolve().parents[1]
-COMMIT = "06ea49d9a487a72c22419b5a8d5c22c11f0d7485"
+COMMIT = "45ed205cc8682ed066c82e0b65bcd0e8fc3becce"
 IMAGE = (
     "golang:1.27.3-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0"
 )
@@ -44,7 +44,7 @@ def test_native_patch_disables_retries_and_preserves_nil_and_errors():
 def test_packaged_native_binaries_match_provenance():
     provenance = json.loads((EXTENSION / "toolbox-provenance.json").read_text())
     assert provenance["commit"] == COMMIT
-    assert provenance["tag"] == "v1.16.0"
+    assert provenance["tag"] == "v1.17.0"
     assert provenance["go_image"] == IMAGE
     assert provenance["packages"] == [
         "github.com/googleapis/mcp-toolbox/internal/sources/redis",

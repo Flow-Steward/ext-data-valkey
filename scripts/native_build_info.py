@@ -42,6 +42,21 @@ def build_info(binary: Path) -> tuple[str, dict[str, str], str]:
     return version, modules, raw
 
 
+def replacements(raw: str) -> dict[str, dict[str, str]]:
+    """Preserve effective local replacements exactly as encoded by the Go linker."""
+    result = {}
+    previous = None
+    for line in raw.splitlines():
+        fields = line.split("\t")
+        if fields[0] == "dep":
+            previous = fields[1]
+        elif fields[0] == "=>":
+            if previous is None or previous in result or len(fields) not in (3, 4):
+                raise ValueError("invalid Go replacement build information")
+            result[previous] = {"path": fields[1], "version": fields[2], "sum": fields[3] if len(fields) == 4 else ""}
+    return result
+
+
 def record(root: Path) -> None:
     path = root / "toolbox-provenance.json"
     info = json.loads(path.read_text())
@@ -57,6 +72,7 @@ def record(root: Path) -> None:
             "go_version": version,
             "modules": modules,
             "build_info": raw,
+            "replacements": replacements(raw),
         })
     path.write_text(json.dumps(info, indent=2) + "\n")
     (root / "SHA256SUMS").write_text("".join(
@@ -76,7 +92,7 @@ def check_security_floor(version: str, modules: dict[str, str], raw: str) -> Non
         fields = line.split("\t")
         if fields[0] == "dep":
             previous = fields[1]
-        elif fields[0] == "=>" and previous in floors:
+        elif fields[0] == "=>":
             raise ValueError(f"security-sensitive module has an unmodeled replacement: {previous}")
     def release(value):
         match = re.fullmatch(r"v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+incompatible)?", value)
@@ -93,15 +109,18 @@ def verify_security(root: Path, target: str, provenance: dict) -> None:
     version, modules, raw = build_info(binary)
     check_security_floor(version, modules, raw)
     entry = provenance["binaries"][target]
-    expected = {"path": f"bin/{target}/toolbox", "go_version": version, "modules": modules, "build_info": raw}
+    expected = {"path": f"bin/{target}/toolbox", "go_version": version, "modules": modules, "build_info": raw, "replacements": replacements(raw)}
     if any(entry.get(key) != value for key, value in expected.items()):
         raise ValueError("native build information does not match provenance")
-    if provenance.get("commit") != "06ea49d9a487a72c22419b5a8d5c22c11f0d7485":
+    if provenance.get("commit") != "45ed205cc8682ed066c82e0b65bcd0e8fc3becce":
         raise ValueError("native source commit does not match the reviewed baseline")
     if provenance.get("go_image") != "golang:1.27.3-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0":
         raise ValueError("native build image does not match the reviewed baseline")
-    if (provenance.get("source"), provenance.get("upstream_tag"), provenance.get("upstream_commit")) != ("https://github.com/googleapis/mcp-toolbox", "v1.16.0", "06ea49d9a487a72c22419b5a8d5c22c11f0d7485"):
+    if (provenance.get("source"), provenance.get("upstream_tag"), provenance.get("upstream_commit")) != ("https://github.com/googleapis/mcp-toolbox", "v1.17.0", "45ed205cc8682ed066c82e0b65bcd0e8fc3becce"):
         raise ValueError("native upstream source identity does not match the reviewed baseline")
+    safety_path = root / 'scripts/patches/0002-flowsteward-key-value-safety.patch'
+    if provenance.get("patch") != 'scripts/patches/0002-flowsteward-key-value-safety.patch' or provenance.get("patch_sha256") != '78b70a46e2d8a24310cf56adb19239eddc6fa6e79d4ea81e5f6d1c8e158e82b0' or not safety_path.is_file() or safety_path.is_symlink() or hashlib.sha256(safety_path.read_bytes()).hexdigest() != '78b70a46e2d8a24310cf56adb19239eddc6fa6e79d4ea81e5f6d1c8e158e82b0':
+        raise ValueError("native connector safety patch is missing or changed")
     profile = provenance.get("approved_profiles", {})
     profile_path = root / "scripts/patches/0000-approved-prebuilt-profiles.patch"
     profile_digest = "df264c60006ad1a01812b427fb6a9593115ddd86227fc9522b8bae6731616aca"
@@ -127,7 +146,7 @@ def verify_security(root: Path, target: str, provenance: dict) -> None:
     if not selected_path.is_file() or selected_path.is_symlink() or json.loads(selected_path.read_text()) != selected:
         raise ValueError("native selected compiler metadata is missing or changed")
     baseline = provenance.get("security_baseline", {})
-    digest = "958ad7a46b015c6520d1c60037c4e6fab41e756d417a618c612f08ac8806dfe7"
+    digest = "1d59fb359f69dc0a15d9e74b33347a60cd7328c60e53abfeb753faad264663fe"
     if baseline != {"patch": "scripts/patches/0000-security-baseline.patch", "sha256": digest}:
         raise ValueError("native dependency baseline does not match provenance")
     path = root / baseline["patch"]
