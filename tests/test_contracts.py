@@ -38,7 +38,7 @@ def test_identity_and_host_contract():
     manifest = load("extension.yaml")
     descriptor = load("extension-descriptor.yaml")
     assert manifest["extension_id"] == descriptor["extension_id"] == "flowsteward.valkey"
-    assert manifest["version"] == descriptor["release_version"] == "1.1.9"
+    assert manifest["version"] == descriptor["release_version"] == "1.1.10"
     assert manifest["kind"] == "tool_provider"
     assert manifest["required_scopes"] == ["extension:invoke"]
     assert manifest["features"] == ["tool", "action", "dataset_connector"]
@@ -166,6 +166,8 @@ def test_ui_resolves_one_connection_form_and_uses_masked_secrets():
         page_path = ROOT / "ui" / page_ref["ref"]
         page = yaml.safe_load(page_path.read_text())
         for component_ref in page["components"]:
+            if "ref" not in component_ref:
+                continue  # inline component, e.g. the Support page's markdown
             component = yaml.safe_load((page_path.parent / component_ref["ref"]).read_text())
             if component["type"] == "connection_form":
                 forms.append(component)
