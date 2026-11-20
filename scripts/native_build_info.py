@@ -167,6 +167,22 @@ def verify_security(root: Path, target: str, provenance: dict) -> None:
         != "78b70a46e2d8a24310cf56adb19239eddc6fa6e79d4ea81e5f6d1c8e158e82b0"
     ):
         raise ValueError("native connector safety patch is missing or changed")
+    driver = {
+        "module": "github.com/redis/go-redis/v9",
+        "version": "v9.23.0",
+        "patch": "scripts/patches/0003-flowsteward-resp-budget.patch",
+        "patch_sha256": "87050320542102bc8f839dd24c8751ef9f0a22a51baf6aaf85d19230fbe64000",
+    }
+    driver_path = root / driver["patch"]
+    if (
+        provenance.get("driver") != driver
+        or modules.get(driver["module"]) != driver["version"]
+        or not driver_path.is_file()
+        or driver_path.is_symlink()
+        or hashlib.sha256(driver_path.read_bytes()).hexdigest() != driver["patch_sha256"]
+    ):
+        raise ValueError("native Redis protocol limits patch is missing or changed")
+
     profile = provenance.get("approved_profiles", {})
     profile_path = root / "scripts/patches/0000-approved-prebuilt-profiles.patch"
     profile_digest = "df264c60006ad1a01812b427fb6a9593115ddd86227fc9522b8bae6731616aca"

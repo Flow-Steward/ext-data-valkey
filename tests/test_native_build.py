@@ -54,6 +54,11 @@ def test_packaged_native_binaries_match_provenance():
     ]
     patch = EXTENSION / provenance["patch"]
     assert hashlib.sha256(patch.read_bytes()).hexdigest() == provenance["patch_sha256"]
+    driver = provenance["driver"]
+    assert driver["module"] == "github.com/redis/go-redis/v9"
+    assert driver["version"] == "v9.23.0"
+    driver_patch = EXTENSION / driver["patch"]
+    assert hashlib.sha256(driver_patch.read_bytes()).hexdigest() == driver["patch_sha256"]
     assert set(provenance["binaries"]) == {"linux-amd64", "linux-arm64"}
     for target, machine in (("linux-amd64", 62), ("linux-arm64", 183)):
         binary = EXTENSION / "bin" / target / "toolbox"

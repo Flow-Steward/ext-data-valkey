@@ -22,7 +22,6 @@ test "$(git -C "$SOURCE" rev-parse HEAD)" = "$TOOLBOX_COMMIT"
 test -z "$(git -C "$SOURCE" status --porcelain --untracked-files=all --ignored)"
 docker run --rm --name "fs-toolbox-valkey-$$" --label flow-steward.build=toolbox-v1.17.0 --cpus 2 --memory 4g \
  -v "$SOURCE:/upstream:ro" -v "$ROOT:/out" \
- -v flow-steward-db-batch-go-cache:/go/pkg/mod -v flow-steward-db-batch-build-cache:/root/.cache/go-build \
  "$BOOTSTRAP_IMAGE" sh /out/scripts/build_inside.sh
 python3 "$ROOT/scripts/provenance.py"
 python3 "$ROOT/scripts/native_build_info.py"

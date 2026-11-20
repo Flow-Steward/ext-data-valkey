@@ -5,10 +5,24 @@ cp -a /upstream /src
 cd /src
 git apply /out/scripts/patches/0000-security-baseline.patch
 printf '%s\n' 'd99a0523879fff7cb43f2352a760707ba31cc6db9e8dad897d721c9340e71d24  go.mod' '2711cd172fdfdb5e29d85549c2e94769fb5639932d1c51df776f5bdeda2fb0f0  go.sum' | sha256sum -c -
+sha256sum go.mod go.sum > /tmp/fs-module-lock
 export GOFLAGS=-mod=readonly GOTOOLCHAIN=local GOMAXPROCS=2
 test "$(go version | cut -d ' ' -f 3)" = go1.27.4
 git apply /out/scripts/patches/0000-approved-prebuilt-profiles.patch
 git apply /out/scripts/patches/0002-flowsteward-key-value-safety.patch
+# Patch only this build's private Go module cache.
+export GOMODCACHE=/tmp/fs-toolbox-gomod
+fs_redis_dependency=github.com/redis/go-redis/v9
+test "$(go list -m -f '{{.Version}}' "$fs_redis_dependency")" = v9.23.0
+go mod download "$fs_redis_dependency"
+fs_redis_driver=$(go list -m -f '{{.Dir}}' "$fs_redis_dependency")
+(
+ cd "$fs_redis_driver"
+ printf '%s\n' '644761c0fac02008231a24ea0437798588f8f8efee984659700bcc635248ecd9  internal/proto/reader.go' | sha256sum -c -
+ chmod u+w internal/proto internal/proto/reader.go
+ git apply /out/scripts/patches/0003-flowsteward-resp-budget.patch
+ GOWORK=off go test -p 1 ./internal/proto -run '^TestFlowSteward' -count=1
+)
 cat > cmd/internal/imports.go <<'IMPORTS'
 package internal
 import (
@@ -18,7 +32,6 @@ import (
 IMPORTS
 # Literal registrations: no prompts/resources or unapproved database tools.
 test "$(grep -c 'internal/' cmd/internal/imports.go)" = 2
-sha256sum go.mod go.sum > /tmp/fs-module-lock
 go test -p 1 ./internal/sources/redis ./internal/tools/redis/... -count=1
 export SOURCE_DATE_EPOCH=1793908560
 for target in linux-amd64 linux-arm64; do
