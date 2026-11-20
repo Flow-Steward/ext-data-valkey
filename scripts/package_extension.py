@@ -55,6 +55,7 @@ PAYLOAD_FILES = (
     "scripts/patches/0000-approved-prebuilt-profiles.patch",
     "scripts/patches/0000-security-baseline.patch",
     "scripts/patches/0002-flowsteward-key-value-safety.patch",
+    "scripts/patches/0003-flowsteward-resp-budget.patch",
     "scripts/provenance.py",
     "scripts/security-floor.json",
     "tests/test_contracts.py",

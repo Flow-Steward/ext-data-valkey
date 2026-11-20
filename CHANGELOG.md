@@ -3,6 +3,7 @@
 ## 1.1.12
 
 - Enforce Dataset size and selected-column limits before dispatch.
+- Bound native reply size, collection entries, and nesting before parsing.
 - Check every resolved endpoint against the administrator network policy.
 - Stage only reviewed release files without following symlinks.
 

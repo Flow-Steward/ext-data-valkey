@@ -99,6 +99,8 @@ def source(tmp_path):
     shutil.copyfile(ROOT / patch, root / patch)
     safety_patch = Path("scripts/patches/0002-flowsteward-key-value-safety.patch")
     shutil.copyfile(ROOT / safety_patch, root / safety_patch)
+    reply_patch = Path("scripts/patches/0003-flowsteward-resp-budget.patch")
+    shutil.copyfile(ROOT / reply_patch, root / reply_patch)
     approved = Path("scripts/patches/0000-approved-prebuilt-profiles.patch")
     shutil.copyfile(ROOT / approved, root / approved)
     for name in (
@@ -224,6 +226,7 @@ def test_actual_release_native_archive_roundtrip(tmp_path, target):
             "NOTICE",
             "scripts/build_toolbox.sh",
             "scripts/patches/0002-flowsteward-key-value-safety.patch",
+            "scripts/patches/0003-flowsteward-resp-budget.patch",
             "toolbox-provenance.json",
         ):
             assert prefix + required in archive.namelist()
