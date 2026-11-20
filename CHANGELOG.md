@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.12
+
+- Enforce Dataset size and selected-column limits before dispatch.
+- Check every resolved endpoint against the administrator network policy.
+- Stage only reviewed release files without following symlinks.
+
 ## 1.1.11
 
 - Rebuild Linux AMD64 and ARM64 native payloads with grpc-gateway v2.34.0 and its required indirect modules on the pinned Toolbox v1.17.0 and verified Go 1.27.4 baseline.

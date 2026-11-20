@@ -23,6 +23,20 @@ def packager():
     return module
 
 
+def test_release_payload_ignores_local_editing_files(tmp_path):
+    (tmp_path / "extension.yaml").write_text("release fixture")
+    (tmp_path / "scratch-notes.txt").write_text("temporary editing notes")
+    (tmp_path / "ui").mkdir()
+    (tmp_path / "ui" / "ui_manifest.yaml").write_text("release fixture")
+    (tmp_path / "ui" / "draft-notes.txt").write_text("temporary editing notes")
+
+    paths = packager()._payload_paths(tmp_path, "linux-amd64")
+    assert tmp_path / "extension.yaml" in paths
+    assert tmp_path / "ui" / "ui_manifest.yaml" in paths
+    assert tmp_path / "scratch-notes.txt" not in paths
+    assert tmp_path / "ui" / "draft-notes.txt" not in paths
+
+
 @pytest.fixture
 def source(tmp_path):
     root = tmp_path / "key_value"
@@ -42,6 +56,7 @@ def source(tmp_path):
         helper_spec = importlib.util.spec_from_file_location(
             "fixture_native_info", ROOT / "scripts/native_build_info.py"
         )
+        assert helper_spec is not None and helper_spec.loader is not None
         helper = importlib.util.module_from_spec(helper_spec)
         helper_spec.loader.exec_module(helper)
         version, modules, raw = helper.build_info(ROOT / "bin" / target / "toolbox")
@@ -121,7 +136,7 @@ def test_archive_is_reproducible_and_contains_one_declared_target(source, tmp_pa
     (source / "outside-link").symlink_to(tmp_path / "secret")
     first = module.package_extension(source, target, tmp_path / "one")
     second = module.package_extension(source, target, tmp_path / "two")
-    assert first.name == f"flowsteward.valkey-1.1.11-{target}.zip"
+    assert first.name == f"flowsteward.valkey-1.1.12-{target}.zip"
     assert first.read_bytes() == second.read_bytes()
     prefix = "flowsteward_valkey/"
     with zipfile.ZipFile(first) as archive:

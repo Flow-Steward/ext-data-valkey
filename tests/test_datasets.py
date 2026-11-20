@@ -114,6 +114,15 @@ def test_column_scope(monkeypatch):
     assert r["result"]["rows"] == [{"key": "app:item"}]
 
 
+def test_explicit_no_columns_does_not_invoke_toolbox(monkeypatch):
+    calls = fake(monkeypatch, "v")
+    payload = request()
+    resource = payload["action"]["input"]["dataset"]["resource_scope_jsonb"]["resources"][0]
+    resource["columns"] = []
+    assert not main.handle(payload)["ok"]
+    assert not calls
+
+
 def test_parameter_binding_precedes_prefix_checks(monkeypatch):
     calls = fake(monkeypatch, "v")
     p = request(arguments={"key": {"$param": "k"}})

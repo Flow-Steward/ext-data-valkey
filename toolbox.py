@@ -61,7 +61,14 @@ def _endpoint(config):
             resolve_pinned_ips(config["host"], port=config["port"], purpose="Valkey endpoint")
         )
         require(bool(ips), "No endpoint addresses.", code="network_blocked")
-        private = all(not ipaddress.ip_address(ip).is_global for ip in ips)
+        addresses = tuple(ipaddress.ip_address(ip) for ip in ips)
+        addresses = tuple(getattr(ip, "ipv4_mapped", None) or ip for ip in addresses)
+        require(
+            all(not ip.is_multicast and not ip.is_unspecified for ip in addresses),
+            "Endpoint must resolve to a unicast address.",
+            code="network_blocked",
+        )
+        private = tuple(not ip.is_global for ip in addresses)
         allow = os.environ.get("FS_ALLOW_PRIVATE_REMOTE_URLS", "").strip().lower() in {
             "1",
             "true",
@@ -69,12 +76,12 @@ def _endpoint(config):
             "on",
         }
         require(
-            not private or allow,
+            allow or not any(private),
             "Private endpoints require host administrator permission.",
             code="network_blocked",
         )
         require(
-            config["tls"] or private,
+            config["tls"] or all(private),
             "Public endpoints require TLS.",
             code="network_blocked",
         )

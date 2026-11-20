@@ -14,7 +14,9 @@ IMAGE = (
 
 
 def test_native_build_pins_source_and_minimal_driver():
-    script = ((EXTENSION / "scripts/build_toolbox.sh").read_text() + (EXTENSION / "scripts/build_inside.sh").read_text())
+    script = (EXTENSION / "scripts/build_toolbox.sh").read_text() + (
+        EXTENSION / "scripts/build_inside.sh"
+    ).read_text()
     assert COMMIT in script
     assert IMAGE in script
     assert "git apply" in script

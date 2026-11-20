@@ -25,16 +25,16 @@ def build_info(binary: Path) -> tuple[str, dict[str, str], str]:
             shift += 7
             if shift >= 64:
                 raise ValueError("invalid Go build information length")
-        value = data[offset : offset + length]
-        if len(value) != length:
+        value_bytes = data[offset : offset + length]
+        if len(value_bytes) != length:
             raise ValueError("truncated Go build information")
         offset += length
-        return value
+        return value_bytes
 
     version = read_string().decode("utf-8")
-    raw = read_string()
+    raw_bytes = read_string()
     # Go surrounds module information with a 16-byte framing sentinel.
-    raw = raw[16:-16].decode("utf-8")
+    raw = raw_bytes[16:-16].decode("utf-8")
     modules = {}
     for line in raw.splitlines():
         fields = line.split("\t")

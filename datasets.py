@@ -1,7 +1,6 @@
 """Bounded logical key views over normal database keys; never scan or write."""
 
 from __future__ import annotations
-import copy
 import json
 import time
 from typing import Any
@@ -45,7 +44,6 @@ def catalog():
 
 
 def bounded(value):
-    bounded_json(value, 65536)
     nodes = 0
 
     def walk(v, depth):
@@ -61,6 +59,13 @@ def bounded(value):
                 walk(c, depth + 1)
 
     walk(value, 0)
+    remaining = 65536
+    try:
+        for chunk in json.JSONEncoder(allow_nan=False).iterencode(value):
+            remaining -= len(chunk)
+            require(remaining >= 0, "Input exceeds the JSON byte limit.")
+    except (ValueError, TypeError, RecursionError, UnicodeError) as exc:
+        raise Failure("invalid_payload", "Bounded valid JSON is required.") from exc
 
 
 def kind(value):
@@ -89,6 +94,7 @@ def bind(arguments, template, params, execution):
     require(isinstance(params, dict), "Parameters must be an object.")
     names = set()
     missing = {}
+    checked_params = set()
 
     def visit(v):
         if isinstance(v, dict):
@@ -115,8 +121,12 @@ def bind(arguments, template, params, execution):
                     kind(value) in types or kind(value) == "integer" and "number" in types,
                     "Parameter type mismatch.",
                 )
-                bounded(value)
-                return copy.deepcopy(value)
+                if name not in checked_params:
+                    bounded(value)
+                    checked_params.add(name)
+                # The compiled query only reads the binding. Share it until the
+                # expanded tree passes the aggregate node and byte budgets.
+                return value
             return {k: visit(c) for k, c in v.items()}
         if isinstance(v, list):
             return [visit(c) for c in v]
@@ -176,6 +186,7 @@ def compile_query(args, execution, limit, config):
     )
     resource = d["resource_id"]
     require(isinstance(resource, str) and resource in allowed, "Resource outside scope.")
+    require(bool(allowed[resource]), "No columns permitted for this resource.")
     op = d["operation"]
     require(
         isinstance(op, str)

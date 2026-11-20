@@ -12,34 +12,76 @@ import stat
 import tempfile
 import time
 import zipfile
+from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 EXTENSION_ID = "flowsteward.valkey"
-VERSION = "1.1.11"
+VERSION = "1.1.12"
 TOP_FOLDER = "flowsteward_valkey"
 SOURCE_DATE_EPOCH = 1793908560
 MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
 MAX_UNCOMPRESSED_BYTES = 150 * 1024 * 1024
 MACHINES = {"linux-amd64": 62, "linux-arm64": 183}
-PAYLOAD_DIRECTORIES = frozenset({"bin", "contracts", "ui", "scripts", "tests", "wheels"})
-EXCLUDED_DIRECTORIES = frozenset(
-    {
-        ".git",
-        ".github",
-        ".venv",
-        "venv",
-        ".fs-python",
-        ".hypothesis",
-        ".mypy_cache",
-        ".pytest_cache",
-        ".ruff_cache",
-        "__pycache__",
-        "dev-wheels",
-        "dist",
-        ".cache",
-    }
+# Add files to this reviewed list when they need to ship in the package.
+PAYLOAD_FILES = (
+    "toolbox-provenance.json",
+    "SHA256SUMS",
+    "BRAND-ASSETS.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "NOTICE",
+    "README.md",
+    "commands.py",
+    "contracts/connection_types.yaml",
+    "contracts/operation_manifest.yaml",
+    "contracts/step_ui_manifest.yaml",
+    "datasets.py",
+    "docs/workflow-actions.md",
+    "extension-descriptor.yaml",
+    "extension.yaml",
+    "health.py",
+    "icon.png",
+    "main.py",
+    "pyproject.toml",
+    "requirements-dev.txt",
+    "scripts/build-config.json",
+    "scripts/build_inside.sh",
+    "scripts/build_toolbox.sh",
+    "scripts/go-toolchain-selected.json",
+    "scripts/go-toolchain-sources.json",
+    "scripts/install-go-toolchain.sh",
+    "scripts/native_build_info.py",
+    "scripts/package_extension.py",
+    "scripts/patches/0000-approved-prebuilt-profiles.patch",
+    "scripts/patches/0000-security-baseline.patch",
+    "scripts/patches/0002-flowsteward-key-value-safety.patch",
+    "scripts/provenance.py",
+    "scripts/security-floor.json",
+    "tests/test_contracts.py",
+    "tests/test_datasets.py",
+    "tests/test_google_api_floor.py",
+    "tests/test_live.py",
+    "tests/test_native_build.py",
+    "tests/test_native_registrations.py",
+    "tests/test_package.py",
+    "tests/test_runtime.py",
+    "tests/test_security_floor.py",
+    "tests/test_toolbox.py",
+    "toolbox.py",
+    "ui/actions/actions.yaml",
+    "ui/components/about.yaml",
+    "ui/components/valkey_connection_form.yaml",
+    "ui/components/valkey_state_connection_form.yaml",
+    "ui/pages/about.yaml",
+    "ui/pages/connection.yaml",
+    "ui/pages/support.yaml",
+    "ui/queries/queries.yaml",
+    "ui/ui_manifest.yaml",
+    "validation.py",
 )
-EXCLUDED_FILES = frozenset({".fs-package.yaml", ".fs-extension-install.yaml", "live-kv.local.json"})
+PAYLOAD_DIRECTORIES = frozenset(
+    {"bin", *(name.split("/")[0] for name in PAYLOAD_FILES if "/" in name)}
+)
 
 
 def sha256(path: Path) -> str:
@@ -51,29 +93,60 @@ def sha256(path: Path) -> str:
 
 
 def _payload_paths(root: Path, target: str) -> list[Path]:
-    paths = []
-    # Walk the build tree, including ignored CI-generated native provenance.
-    for directory, directories, files in os.walk(root, followlinks=False):
-        parent = Path(directory)
-        directories[:] = sorted(
-            name
-            for name in directories
-            if name not in EXCLUDED_DIRECTORIES and not (parent / name).is_symlink()
-        )
-        for name in sorted(files):
-            path = parent / name
-            relative = path.relative_to(root)
-            if path.is_symlink() or name in EXCLUDED_FILES or name.endswith((".pyc", ".pyo")):
-                continue
-            if relative.parts[0] == "bin" and relative != Path("bin") / target / "toolbox":
-                # Foreign targets are omitted; unexpected files in the selected target fail closed.
-                if len(relative.parts) > 1 and relative.parts[1] == target:
-                    raise ValueError("Target directory must contain exactly one native executable")
-                continue
-            if not path.is_file():
-                raise ValueError(f"Package input is not a regular file: {relative}")
-            paths.append(path)
-    return sorted(paths)
+    paths = [root / name for name in PAYLOAD_FILES]
+    paths.append(root / "bin" / target / "toolbox")
+    return sorted(path for path in paths if path.exists() or path.is_symlink())
+
+
+@contextmanager
+def _open_directory(root_fd: int, parts: tuple[str, ...]):
+    # Relative descriptor opens preserve the directory identity across renames.
+    with ExitStack() as stack:
+        parent = root_fd
+        for part in parts:
+            parent = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+            stack.callback(os.close, parent)
+        yield parent
+
+
+def _stage_payload(root: Path, stage: Path, target: str) -> None:
+    binary = Path("bin") / target / "toolbox"
+    remaining = MAX_UNCOMPRESSED_BYTES
+    paths = [path.relative_to(root) for path in _payload_paths(root, target)]
+    root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        with _open_directory(root_fd, binary.parts[:-1]) as native_dir:
+            if set(os.listdir(native_dir)) != {binary.name}:
+                raise ValueError("Target directory must contain exactly one native executable")
+        for relative in paths:
+            with _open_directory(root_fd, relative.parts[:-1]) as parent:
+                fd = os.open(
+                    relative.name,
+                    os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK,
+                    dir_fd=parent,
+                )
+                with os.fdopen(fd, "rb") as stream:
+                    file_stat = os.fstat(stream.fileno())
+                    if not stat.S_ISREG(file_stat.st_mode) or file_stat.st_nlink != 1:
+                        raise ValueError(
+                            f"Package input is not an independent regular file: {relative}"
+                        )
+                    if file_stat.st_size > remaining:
+                        raise ValueError(
+                            "Extension archive exceeds installer uncompressed-size limit"
+                        )
+                    data = stream.read(remaining + 1)
+                if len(data) > remaining:
+                    raise ValueError("Extension archive exceeds installer uncompressed-size limit")
+                remaining -= len(data)
+                destination = stage / relative
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(data)
+                destination.chmod(stat.S_IMODE(file_stat.st_mode) & 0o777)
+    except OSError as exc:
+        raise ValueError("Unable to read regular files from the reviewed release payload") from exc
+    finally:
+        os.close(root_fd)
 
 
 def _native_metadata(root: Path, target: str) -> dict[str, str]:
@@ -125,13 +198,20 @@ def package_extension(root: Path, target: str, out_dir: Path) -> Path:
     if target not in MACHINES:
         raise ValueError("Unsupported runtime target")
     root = root.resolve(strict=True)
-    native = _native_metadata(root, target)
     out_dir = out_dir.resolve()
     if out_dir == root:
         raise ValueError("Output directory must differ from the extension root")
     if out_dir.is_relative_to(root) and out_dir.relative_to(root).parts[0] in PAYLOAD_DIRECTORIES:
         raise ValueError("Output directory must not overlap release payload directories")
-    paths = [path for path in _payload_paths(root, target) if out_dir not in path.parents]
+    with tempfile.TemporaryDirectory(prefix="extension-payload-") as directory:
+        stage = Path(directory)
+        _stage_payload(root, stage, target)
+        return _write_archive(stage, target, out_dir)
+
+
+def _write_archive(root: Path, target: str, out_dir: Path) -> Path:
+    native = _native_metadata(root, target)
+    paths = _payload_paths(root, target)
     for required in (
         "LICENSE",
         "NOTICE",
