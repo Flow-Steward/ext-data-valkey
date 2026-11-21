@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.13 - 2026-11-21
+
+- Refresh the reviewed Toolbox Go dependency lock and rebuild both Linux runtime targets.
+
 ## 1.1.12
 
 - Enforce Dataset size and selected-column limits before dispatch.
