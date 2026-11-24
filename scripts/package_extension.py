@@ -16,7 +16,7 @@ from contextlib import ExitStack, contextmanager
 from pathlib import Path
 
 EXTENSION_ID = "flowsteward.valkey"
-VERSION = "1.1.13"
+VERSION = "1.1.14"
 TOP_FOLDER = "flowsteward_valkey"
 SOURCE_DATE_EPOCH = 1793908560
 MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
