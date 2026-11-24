@@ -5,7 +5,7 @@
   "tag": "v1.18.0",
   "commit": "24762d91babd43d91afc3daeeece1cb446266c54",
   "go_image": "golang:1.27.3-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0",
-  "source_date_epoch": 1793908560,
+  "source_date_epoch": 1795211695,
   "patch": "scripts/patches/0002-flowsteward-key-value-safety.patch",
   "driver": {
     "module": "github.com/redis/go-redis/v9",
@@ -18,7 +18,7 @@
   ],
   "go_image_role": "bootstrap",
   "module_lock": {
-    "go.mod": "0d997052841250a5fb61f4beff492ff43b8d4d4db605b456211a78bc0a1ca758",
-    "go.sum": "6d67d8d090d3b46ea71fa92c9f7184a963010508d6fea57ce06756c01e583ec3"
+    "go.mod": "9374d17aeca42ed79b512f7f275fffd610c9baad75ac82aa48828f48beec0a9c",
+    "go.sum": "a0009615d1ec9d4f3571c251e7c094702fc4569ce244b6a34f42e8e749c28ecd"
   }
 }
