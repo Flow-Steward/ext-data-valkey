@@ -1,9 +1,9 @@
 #!/bin/sh
-# Reviewed Toolbox v1.17.0, fixed module graph, official Go 1.27.4 and connector-only registrations.
+# Reviewed Toolbox v1.18.0, fixed module graph, official Go 1.27.4 and connector-only registrations.
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 BOOTSTRAP_IMAGE=golang:1.27.3-bookworm@sha256:dc0963f32053e4bc451d24d87e3892d42d01021b61f093e98eb95c0352bb84b0
-TOOLBOX_COMMIT=45ed205cc8682ed066c82e0b65bcd0e8fc3becce
+TOOLBOX_COMMIT=24762d91babd43d91afc3daeeece1cb446266c54
 SOURCE=${TOOLBOX_SOURCE:-${FS_TOOLBOX_SOURCE_DIR:-}}
 OWNED_SOURCE=
 cleanup() { if [ -n "$OWNED_SOURCE" ]; then rm -rf -- "$OWNED_SOURCE"; fi; }
@@ -20,7 +20,7 @@ fi
 SOURCE=$(CDPATH= cd -- "$SOURCE" && pwd)
 test "$(git -C "$SOURCE" rev-parse HEAD)" = "$TOOLBOX_COMMIT"
 test -z "$(git -C "$SOURCE" status --porcelain --untracked-files=all --ignored)"
-docker run --rm --name "fs-toolbox-valkey-$$" --label flow-steward.build=toolbox-v1.17.0 --cpus 2 --memory 4g \
+docker run --rm --name "fs-toolbox-valkey-$$" --label flow-steward.build=toolbox-v1.18.0 --cpus 2 --memory 4g \
  -v "$SOURCE:/upstream:ro" -v "$ROOT:/out" \
  "$BOOTSTRAP_IMAGE" sh /out/scripts/build_inside.sh
 python3 "$ROOT/scripts/provenance.py"
