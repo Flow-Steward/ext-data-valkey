@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.15 - 2026-11-26
+
+- Update go-redis to v9.24.0 and keep Flow Steward's RESP reply limits when clearing cached read errors.
+- Update Google Cloud Auth to v0.24.5 and the Google API client to v0.317.0.
+- Pin the Gorilla WebSocket fix for GHSA-w67g-5rqw-f597 in both Linux runtime targets.
+
 ## 1.1.14 - 2026-11-24
 
 - Update the pinned Toolbox source to v1.18.0 and refresh the reviewed Linux AMD64 and ARM64 dependency locks.

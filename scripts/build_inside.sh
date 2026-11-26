@@ -4,7 +4,7 @@ sh /out/scripts/install-go-toolchain.sh /out/scripts/go-toolchain-selected.json
 cp -a /upstream /src
 cd /src
 git apply /out/scripts/patches/0000-security-baseline.patch
-printf '%s\n' '9374d17aeca42ed79b512f7f275fffd610c9baad75ac82aa48828f48beec0a9c  go.mod' 'a0009615d1ec9d4f3571c251e7c094702fc4569ce244b6a34f42e8e749c28ecd  go.sum' | sha256sum -c -
+printf '%s\n' '2430ca2853a8602f310f8383da5f9704033bd06babafaafbeb9eb15eb9c8c07f  go.mod' 'b8865989ddf3ead57fab5b3fa27cb6562ee7b24f5b7b7a870e21c02aaa70b687  go.sum' | sha256sum -c -
 sha256sum go.mod go.sum > /tmp/fs-module-lock
 export GOFLAGS=-mod=readonly GOTOOLCHAIN=local GOMAXPROCS=2
 test "$(go version | cut -d ' ' -f 3)" = go1.27.4
@@ -13,12 +13,12 @@ git apply /out/scripts/patches/0002-flowsteward-key-value-safety.patch
 # Patch only this build's private Go module cache.
 export GOMODCACHE=/tmp/fs-toolbox-gomod
 fs_redis_dependency=github.com/redis/go-redis/v9
-test "$(go list -m -f '{{.Version}}' "$fs_redis_dependency")" = v9.23.0
+test "$(go list -m -f '{{.Version}}' "$fs_redis_dependency")" = v9.24.0
 go mod download "$fs_redis_dependency"
 fs_redis_driver=$(go list -m -f '{{.Dir}}' "$fs_redis_dependency")
 (
  cd "$fs_redis_driver"
- printf '%s\n' '644761c0fac02008231a24ea0437798588f8f8efee984659700bcc635248ecd9  internal/proto/reader.go' | sha256sum -c -
+ printf '%s\n' '841ee1e911d8e7f4e776c1b05cc633f302f379cc72bc2b4e46fda75bc7b993ce  internal/proto/reader.go' | sha256sum -c -
  chmod u+w internal/proto internal/proto/reader.go
  git apply /out/scripts/patches/0003-flowsteward-resp-budget.patch
  GOWORK=off go test -p 1 ./internal/proto -run '^TestFlowSteward' -count=1
