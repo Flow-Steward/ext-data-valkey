@@ -169,9 +169,9 @@ def verify_security(root: Path, target: str, provenance: dict) -> None:
         raise ValueError("native connector safety patch is missing or changed")
     driver = {
         "module": "github.com/redis/go-redis/v9",
-        "version": "v9.23.0",
+        "version": "v9.24.0",
         "patch": "scripts/patches/0003-flowsteward-resp-budget.patch",
-        "patch_sha256": "87050320542102bc8f839dd24c8751ef9f0a22a51baf6aaf85d19230fbe64000",
+        "patch_sha256": "c07d91f269d17ccd84fca132a1bfc60ca42a47fa1464c7ac9fb92f15d2fc80ad",
     }
     driver_path = root / driver["patch"]
     if (
@@ -239,7 +239,7 @@ def verify_security(root: Path, target: str, provenance: dict) -> None:
     ):
         raise ValueError("native selected compiler metadata is missing or changed")
     baseline = provenance.get("security_baseline", {})
-    digest = "0d2cb00b8873d5d87bf45eba476bad7e7a5f92fe679de96356c94ef9aefa7b57"
+    digest = "8f75f060eaee4da74d5ec2966584cd8c8c24c332c7b11b9fc0bf0b2ee51eadb7"
     if baseline != {"patch": "scripts/patches/0000-security-baseline.patch", "sha256": digest}:
         raise ValueError("native dependency baseline does not match provenance")
     path = root / baseline["patch"]

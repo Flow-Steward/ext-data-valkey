@@ -9,7 +9,7 @@
   "patch": "scripts/patches/0002-flowsteward-key-value-safety.patch",
   "driver": {
     "module": "github.com/redis/go-redis/v9",
-    "version": "v9.23.0",
+    "version": "v9.24.0",
     "patch": "scripts/patches/0003-flowsteward-resp-budget.patch"
   },
   "packages": [
@@ -18,7 +18,7 @@
   ],
   "go_image_role": "bootstrap",
   "module_lock": {
-    "go.mod": "9374d17aeca42ed79b512f7f275fffd610c9baad75ac82aa48828f48beec0a9c",
-    "go.sum": "a0009615d1ec9d4f3571c251e7c094702fc4569ce244b6a34f42e8e749c28ecd"
+    "go.mod": "2430ca2853a8602f310f8383da5f9704033bd06babafaafbeb9eb15eb9c8c07f",
+    "go.sum": "b8865989ddf3ead57fab5b3fa27cb6562ee7b24f5b7b7a870e21c02aaa70b687"
   }
 }

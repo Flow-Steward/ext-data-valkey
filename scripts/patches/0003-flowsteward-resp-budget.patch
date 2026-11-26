@@ -1,6 +1,6 @@
 diff --git a/internal/proto/flow_steward_limits.go b/internal/proto/flow_steward_limits.go
 new file mode 100644
-index 0000000..e4f3daa
+index 0000000..e5a03f8
 --- /dev/null
 +++ b/internal/proto/flow_steward_limits.go
 @@ -0,0 +1,89 @@
@@ -25,18 +25,18 @@ index 0000000..e4f3daa
 +func (r *Reader) replyLimit(reason string) error {
 +	// A rejected header may leave its body unread. Do not interpret any
 +	// remaining bytes as a fresh reply, even if an optional read failed.
-+	r.limit = fmt.Errorf("%w (%s)", errReplyLimit, reason)
-+	return r.limit
++	r.fatalErr = fmt.Errorf("%w (%s)", errReplyLimit, reason)
++	return r.fatalErr
 +}
 +
 +func (r *Reader) checkReplyHeader(line []byte) error {
-+	if r.depth == 0 {
++	if r.budgetDepth == 0 {
 +		if r.slots == 0 {
 +			return r.replyLimit("reply elements")
 +		}
 +		r.slots--
 +	} else {
-+		r.pending[r.depth-1]--
++		r.pending[r.budgetDepth-1]--
 +	}
 +
 +	children, err := r.checkReplyLength(line)
@@ -44,15 +44,15 @@ index 0000000..e4f3daa
 +		return err
 +	}
 +	if children > 0 {
-+		if r.depth == len(r.pending) {
++		if r.budgetDepth == len(r.pending) {
 +			return r.replyLimit("reply nesting")
 +		}
 +		r.slots -= children
-+		r.pending[r.depth] = children
-+		r.depth++
++		r.pending[r.budgetDepth] = children
++		r.budgetDepth++
 +	}
-+	for r.depth > 0 && r.pending[r.depth-1] == 0 {
-+		r.depth--
++	for r.budgetDepth > 0 && r.pending[r.budgetDepth-1] == 0 {
++		r.budgetDepth--
 +	}
 +	return nil
 +}
@@ -95,15 +95,16 @@ index 0000000..e4f3daa
 +}
 diff --git a/internal/proto/flow_steward_limits_test.go b/internal/proto/flow_steward_limits_test.go
 new file mode 100644
-index 0000000..7a4e2e7
+index 0000000..640b4a2
 --- /dev/null
 +++ b/internal/proto/flow_steward_limits_test.go
-@@ -0,0 +1,119 @@
+@@ -0,0 +1,169 @@
 +package proto
 +
 +import (
 +	"bytes"
 +	"errors"
++	"io"
 +	"reflect"
 +	"strings"
 +	"testing"
@@ -218,33 +219,97 @@ index 0000000..7a4e2e7
 +		t.Fatalf("PeekReplyType() = %v, want an attribute depth limit error", err)
 +	}
 +}
++
++type flowStewardOneReadTimeout struct {
++	io.Reader
++}
++
++func (r flowStewardOneReadTimeout) Read(p []byte) (int, error) {
++	n, err := r.Reader.Read(p)
++	if err == nil {
++		err = errors.New("test read timeout")
++	}
++	return n, err
++}
++
++func TestFlowStewardCachedReadErrorKeepsWireBudget(t *testing.T) {
++	for _, tt := range []struct {
++		name   string
++		cached string
++	}{
++		{name: "empty"},
++		{name: "buffered", cached: "+CACHED\r\n"},
++	} {
++		t.Run(tt.name, func(t *testing.T) {
++			const first = "+OK\r\n"
++			const next = "+NEXT\r\n"
++			src := io.MultiReader(
++				flowStewardOneReadTimeout{strings.NewReader(first + tt.cached)},
++				strings.NewReader(next+"+EXTRA\r\n"),
++			)
++			r := NewReader(src)
++			r.wire.N = int64(len(first + tt.cached + next))
++
++			if got, err := r.ReadString(); err != nil || got != "OK" {
++				t.Fatalf("first reply = (%q, %v), want OK", got, err)
++			}
++			r.DiscardCachedReadError()
++			if tt.cached != "" {
++				if got, err := r.ReadString(); err != nil || got != "CACHED" {
++					t.Fatalf("cached reply = (%q, %v), want CACHED", got, err)
++				}
++			}
++			if got, err := r.ReadString(); err != nil || got != "NEXT" {
++				t.Fatalf("next reply = (%q, %v), want NEXT", got, err)
++			}
++			if got, err := r.ReadString(); got != "" || !errors.Is(err, errReplyLimit) {
++				t.Fatalf("reply past budget after resetting cached error = (%q, %v), want a limit error", got, err)
++			}
++		})
++	}
++}
 diff --git a/internal/proto/reader.go b/internal/proto/reader.go
-index 21fb5cc..858acca 100644
+index e01aabf..3d96fb4 100644
 --- a/internal/proto/reader.go
 +++ b/internal/proto/reader.go
-@@ -58,18 +58,24 @@ func ParseErrorReply(line []byte) error {
+@@ -80,8 +80,7 @@ const maxNestingDepth = 1000
+ var errMaxNestingDepth = errors.New("redis: maximum nesting depth exceeded")
  
  type Reader struct {
- 	rd *bufio.Reader
-+	// The managed executable uses a connection for its Redis handshake and
-+	// command. Share this budget across every reply on that connection.
-+	wire    io.LimitedReader
-+	slots   int
-+	pending []int
-+	depth   int
-+	limit   error
+-	rd  *bufio.Reader
+-	src io.Reader
++	rd *bufio.Reader
+ 
+ 	// Conn.WithReader may be entered concurrently for its usedAt bookkeeping
+ 	// (internal/pool/conn_used_at_test.go), and bufio.Reader is not safe for
+@@ -90,6 +89,12 @@ type Reader struct {
+ 
+ 	depth    int
+ 	fatalErr error
++
++	// Share the Flow Steward reply budget across the handshake and command.
++	wire        io.LimitedReader
++	slots       int
++	pending     []int
++	budgetDepth int
+ }
+ 
+ func (r *Reader) enterAggregate() error {
+@@ -107,17 +112,14 @@ func (r *Reader) enterAggregate() error {
  }
  
  func NewReader(rd io.Reader) *Reader {
 -	return &Reader{
--		rd: bufio.NewReaderSize(rd, DefaultBufferSize),
+-		rd:  bufio.NewReaderSize(rd, DefaultBufferSize),
+-		src: rd,
 -	}
 +	return NewReaderSize(rd, DefaultBufferSize)
  }
  
  func NewReaderSize(rd io.Reader, size int) *Reader {
 -	return &Reader{
--		rd: bufio.NewReaderSize(rd, size),
+-		rd:  bufio.NewReaderSize(rd, size),
+-		src: rd,
 -	}
 +	r := &Reader{pending: make([]int, maxReplyDepth)}
 +	r.rd = bufio.NewReaderSize(&r.wire, size)
@@ -252,15 +317,37 @@ index 21fb5cc..858acca 100644
 +	return r
  }
  
- func (r *Reader) Buffered() int {
-@@ -82,17 +88,28 @@ func (r *Reader) Size() int {
+ // DiscardCachedReadError drops a read error that bufio cached from a previous
+@@ -134,12 +136,12 @@ func NewReaderSize(rd io.Reader, size int) *Reader {
+ func (r *Reader) DiscardCachedReadError() {
+ 	r.resetMu.Lock()
+ 	defer r.resetMu.Unlock()
+-	if r.src == nil {
++	if r.wire.R == nil {
+ 		return
+ 	}
+ 	n := r.rd.Buffered()
+ 	if n == 0 {
+-		r.rd.Reset(r.src)
++		r.rd.Reset(&r.wire)
+ 		return
+ 	}
+ 	buffered := make([]byte, n)
+@@ -148,7 +150,8 @@ func (r *Reader) DiscardCachedReadError() {
+ 		// unreachable; leave the reader untouched rather than lose the bytes.
+ 		return
+ 	}
+-	r.rd.Reset(io.MultiReader(bytes.NewReader(buffered), r.src))
++	// These buffered bytes were already charged against the wire budget.
++	r.rd.Reset(io.MultiReader(bytes.NewReader(buffered), &r.wire))
  }
  
- func (r *Reader) Peek(n int) ([]byte, error) {
+ func (r *Reader) Buffered() int {
+@@ -164,12 +167,18 @@ func (r *Reader) Peek(n int) ([]byte, error) {
+ 	if r.fatalErr != nil {
+ 		return nil, r.fatalErr
+ 	}
 -	return r.rd.Peek(n)
-+	if r.limit != nil {
-+		return nil, r.limit
-+	}
 +	b, err := r.rd.Peek(n)
 +	if err == io.EOF && r.wire.N == 0 {
 +		return nil, r.replyLimit("wire bytes")
@@ -270,31 +357,40 @@ index 21fb5cc..858acca 100644
  
  func (r *Reader) Reset(rd io.Reader) {
 -	r.rd.Reset(rd)
+-	r.src = rd
 +	r.wire = io.LimitedReader{R: rd, N: maxReplyWireBytes}
-+	r.slots = maxReplySlots
-+	r.depth = 0
-+	r.limit = nil
 +	r.rd.Reset(&r.wire)
++	r.slots = maxReplySlots
++	r.budgetDepth = 0
+ 	r.depth = 0
+ 	r.fatalErr = nil
  }
- 
+@@ -177,11 +186,8 @@ func (r *Reader) Reset(rd io.Reader) {
  // PeekReplyType returns the data type of the next response without advancing the Reader,
  // and discard the attribute type.
  func (r *Reader) PeekReplyType() (byte, error) {
--	b, err := r.rd.Peek(1)
-+	b, err := r.Peek(1)
- 	if err != nil {
- 		return 0, err
- 	}
-@@ -130,7 +147,7 @@ var ErrPushNotificationNameTooLong = errors.New("redis: push notification name e
+-	if r.fatalErr != nil {
+-		return 0, r.fatalErr
+-	}
+ 	for {
+-		b, err := r.rd.Peek(1)
++		b, err := r.Peek(1)
+ 		if err != nil {
+ 			return 0, err
+ 		}
+@@ -243,10 +249,7 @@ var ErrPushNotificationNameNotString = errors.New("redis: push notification name
  // notification and cause the caller's ReadReply to consume (and drop) the
  // frame; see issue #3839.
  func (r *Reader) PeekPushNotificationName() (string, error) {
+-	if r.fatalErr != nil {
+-		return "", r.fatalErr
+-	}
 -	c, err := r.rd.Peek(1)
 +	c, err := r.Peek(1)
  	if err != nil {
  		return "", err
  	}
-@@ -146,7 +163,7 @@ func (r *Reader) PeekPushNotificationName() (string, error) {
+@@ -262,7 +265,7 @@ func (r *Reader) PeekPushNotificationName() (string, error) {
  		if avail > maxPushHeaderPeek {
  			avail = maxPushHeaderPeek
  		}
@@ -303,7 +399,7 @@ index 21fb5cc..858acca 100644
  		if peekErr != nil {
  			return "", peekErr
  		}
-@@ -163,7 +180,7 @@ func (r *Reader) PeekPushNotificationName() (string, error) {
+@@ -279,7 +282,7 @@ func (r *Reader) PeekPushNotificationName() (string, error) {
  		// Valid but incomplete prefix: the rest of the frame is in flight.
  		// Block for exactly one more byte — the read that delivers it picks
  		// up whatever else has already arrived — then re-parse.
@@ -312,17 +408,14 @@ index 21fb5cc..858acca 100644
  			if errors.Is(err, bufio.ErrBufferFull) {
  				return "", ErrPushNotificationNameTooLong
  			}
-@@ -312,27 +329,40 @@ func (r *Reader) ReadLine() ([]byte, error) {
- //   - there is a pending read error;
- //   - or line does not end with \r\n.
- func (r *Reader) readLine() ([]byte, error) {
+@@ -440,27 +443,37 @@ func (r *Reader) readLine() ([]byte, error) {
+ 	if r.fatalErr != nil {
+ 		return nil, r.fatalErr
+ 	}
 -	b, err := r.rd.ReadSlice('\n')
 -	if err != nil {
 -		if err != bufio.ErrBufferFull {
 -			return nil, err
-+	if r.limit != nil {
-+		return nil, r.limit
-+	}
 +	var line []byte
 +	for {
 +		b, err := r.rd.ReadSlice('\n')
@@ -353,12 +446,12 @@ index 21fb5cc..858acca 100644
 +			line = append(line, b...)
 +		}
 +		break
-+	}
-+	if len(line) <= 2 || line[len(line)-2] != '\r' {
-+		return nil, fmt.Errorf("redis: invalid reply: %q", line)
  	}
 -	if len(b) <= 2 || b[len(b)-1] != '\n' || b[len(b)-2] != '\r' {
 -		return nil, fmt.Errorf("redis: invalid reply: %q", b)
++	if len(line) <= 2 || line[len(line)-1] != '\n' || line[len(line)-2] != '\r' {
++		return nil, fmt.Errorf("redis: invalid reply: %q", line)
++	}
 +	line = line[:len(line)-2]
 +	if err := r.checkReplyHeader(line); err != nil {
 +		return nil, err
